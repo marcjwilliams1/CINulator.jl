@@ -1,0 +1,7 @@
+name = "CINulator"
+uuid = "ac570abc-173d-11e9-1ffb-2794e32b14dd"
+authors = ["Marc <marc.williams.13@ucl.ac.uk>"]
+version = "0.1.0"
+
+[deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
