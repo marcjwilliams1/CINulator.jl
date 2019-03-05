@@ -104,7 +104,9 @@ function newmutations(cancercell::cancercellCN,
     μ::Chrmutrate,
     s::Chrfitness,
     Rmax, t,
-    fitnessfunc)
+    fitnessfunc;
+    minCN = 1,
+    maxCN = 6)
 
     #function to add new mutations to cells based on μ
     mutations_gain = map(x -> rand(Poisson(x)), μ.gain) .> 0
@@ -120,8 +122,13 @@ function newmutations(cancercell::cancercellCN,
     #change copy number state of chromosomes
     for i in 1:cancercell.chromosomes.N
         cancercell.chromosomes.CN[i] += mutations_gain[i] - mutations_loss[i]
-        if cancercell.chromosomes.CN[i] < 0
-            cancercell.chromosomes.CN[i] = 0
+        #CN cannot go below minCN
+        if cancercell.chromosomes.CN[i] <= minCN
+            cancercell.chromosomes.CN[i] = minCN
+        end
+        #CN cannot exceed maxCN
+        if cancercell.chromosomes.CN[i] >= maxCN
+            cancercell.chromosomes.CN[i] = maxCN
         end
     end
 
@@ -206,6 +213,8 @@ function simulate(b, d, Nmax, Nchr;
 end
 
 function copynumberfrequency(cells::Array{cancercellCN, 1})
+    #return frequency of copy number mutations, note that we check if
+    # copy number can be 0 even if this is not the case
 
     N = length(cells)
     Nchr = cells[1].chromosomes.N
