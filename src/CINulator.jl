@@ -22,5 +22,6 @@ export
 ### source files
 include("simulate.jl")
 include("plots.jl")
+include("util.jl")
 
 end # module

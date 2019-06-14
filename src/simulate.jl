@@ -32,12 +32,19 @@ end
 mutable struct Chrfitness
     loss::Array{Float64, 1}
     gain::Array{Float64, 1}
-    function Chrfitness(N; m = 0.1, fitnessloss = [], fitnessgain = [])
+    optimum::Array{Int64, 1}
+    function Chrfitness(N; m = 0.1, fitnessloss = [], fitnessgain = [], optimum = [])
         if isempty(fitnessloss)
             fitnessloss = rand(Gamma(m), N)
             fitnessgain = rand(Gamma(m), N)
+            optimum = rand(1:6, N)
+            idx = fitnessloss .> fitnessgain
+            optimum[idx] = fill(1, sum(idx))
+            idx = fitnessloss .< fitnessgain
+            optimum[idx] = rand(3:6, sum(idx))
+            optimum .= 20
         end
-        return new(fitnessloss, fitnessgain)
+        return new(fitnessloss, fitnessgain, optimum)
     end
 end
 
@@ -83,23 +90,25 @@ function multiplicativefitness(cancercell, chrfitness, b, d)
 
   gain_or_loss = cancercell.chromosomes.CN -
         fill(2, cancercell.chromosomes.N)
+  distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
+  distancefromoptimum[distancefromoptimum .< 0.001] .= -1.0
+  distancefromoptimum = distancefromoptimum .+ 1.0
 
   j = 1
   for CNstate in gain_or_loss
       gain = CNstate > 0
-      for i in 1:abs(CNstate)
-          if gain == true
-              if chrfitness.gain[j] >= 0.0
-                  b = b * (1.0 + chrfitness.gain[j])
-              else
-                  d = d * (1.0 - chrfitness.gain[j])
-              end
+      if gain == true
+          if chrfitness.gain[j] >= 0.0
+              #println([distancefromoptimum[j], chrfitness.gain[j], abs(CNstate)])
+              b = b * ((1.0 + chrfitness.gain[j]) .^ abs(CNstate)) * ((1.0 + chrfitness.gain[j]) .^ -distancefromoptimum[j])
           else
-              if chrfitness.loss[j] >= 0.0
-                  b = b * (1.0 + chrfitness.loss[j])
-              else
-                  d = d * (1.0 - chrfitness.loss[j])
-              end
+              d = d * ((1.0 - chrfitness.gain[j]) .^ abs(CNstate)) * ((1.0 - chrfitness.gain[j]) .^ -distancefromoptimum[j])
+          end
+      else
+          if chrfitness.loss[j] >= 0.0
+              b = b * ((1.0 + chrfitness.loss[j]) .^ abs(CNstate)) * ((1.0 + chrfitness.loss[j]) .^ -distancefromoptimum[j])
+          else
+              d = d * ((1.0 - chrfitness.loss[j]) .^ abs(CNstate)) * ((1.0 - chrfitness.loss[j]) .^ -distancefromoptimum[j])
           end
       end
       j += 1
