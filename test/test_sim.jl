@@ -152,7 +152,7 @@ cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s)
 f = copynumberfrequency(cells)
 plot(cells)
-
+@test findmax(f[:, 2])[2] - 1 == 4
 
 
 
