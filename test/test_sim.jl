@@ -19,23 +19,25 @@ x[5][1].chromosomes.CN[1] = 3
 x[5][1].chromosomes.CN[3] = 1
 fit.gain[1] = 0.5
 fit.loss[3] = -0.9
-b = CINulator.multiplicativefitness(x[5][1], fit, log(2))
-@test isapprox(b, (log(2) * (1 + 0.5) * (1 -  0.9)), rtol = 0.01)
+bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
+@test isapprox(bdrates[1], (log(2) * (1 + 0.5)), rtol = 0.01)
+@test isapprox(bdrates[2], 0.1 * (1 + 0.9))
 
 x[5][1].chromosomes.CN[1] = 4
 x[5][1].chromosomes.CN[3] = 1
 fit.gain[1] = 0.5
 fit.loss[3] = -0.9
-b = CINulator.multiplicativefitness(x[5][1], fit, log(2))
-@test isapprox(b, (log(2) * (1 + 0.5)^2 * (1 -  0.9)), rtol = 0.01)
+bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
+@test isapprox(bdrates[1], (log(2) * (1 + 0.5)^2), rtol = 0.01)
+@test isapprox(bdrates[2], (0.1 * (1 +  0.9)), rtol = 0.01)
 
 x[5][1].chromosomes.CN[1] = 3
 x[5][1].chromosomes.CN[3] = 0
 fit.gain[1] = 0.5
 fit.loss[3] = -0.9
-b = CINulator.multiplicativefitness(x[5][1], fit, log(2))
-@test isapprox(b, (log(2) * (1 + 0.5)^1 * (1 -  0.9) ^2), rtol = 0.01)
-
+bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
+@test isapprox(bdrates[1], (log(2) * (1 + 0.5)^1), rtol = 0.01)
+@test isapprox(bdrates[2], (0.1 * (1 +  0.9) ^2), rtol = 0.01)
 
 x[5][1].chromosomes.CN[1] = 2
 x[5][1].chromosomes.CN[3] = 2
@@ -52,7 +54,7 @@ c, Rmax = CINulator.newmutations(x[5][1], mu, fit, 1.0, 10.0, CINulator.multipli
 Nchr = 4
 Nmax = 10^5
 b = log(2)
-d = 0.0
+d = 0.2
 μ = CINulator.Chrmutrate(Nchr,
         mutratesgain = [0.2, 0.2, 0.2, 0.0],
         mutratesloss = [0.2, 0.2, 0.2, 0.0])
@@ -83,7 +85,7 @@ plot(cells)
 Nchr = 4
 Nmax = 10^5
 b = log(2)
-d = 0.0
+d = 0.3
 μ = CINulator.Chrmutrate(Nchr,
         mutratesgain = [0.2, 0.2, 0.2, 0.0],
         mutratesloss = [0.2, 0.2, 0.2, 0.0])

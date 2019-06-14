@@ -78,7 +78,7 @@ function initializesim(b, d, Nchr)
     return t, tvec, N, Nvec, cells
 end
 
-function multiplicativefitness(cancercell, chrfitness, b)
+function multiplicativefitness(cancercell, chrfitness, b, d)
 
   gain_or_loss = cancercell.chromosomes.CN -
         fill(2, cancercell.chromosomes.N)
@@ -88,15 +88,23 @@ function multiplicativefitness(cancercell, chrfitness, b)
       gain = CNstate > 0
       for i in 1:abs(CNstate)
           if gain == true
-              b = b * (1.0 + chrfitness.gain[j])
+              if chrfitness.gain[j] >= 0.0
+                  b = b * (1.0 + chrfitness.gain[j])
+              else
+                  d = d * (1.0 - chrfitness.gain[j])
+              end
           else
-              b = b * (1.0 + chrfitness.loss[j])
+              if chrfitness.loss[j] >= 0.0
+                  b = b * (1.0 + chrfitness.loss[j])
+              else
+                  d = d * (1.0 - chrfitness.loss[j])
+              end
           end
       end
       j += 1
   end
 
-  return b
+  return b, d
 end
 
 
@@ -118,6 +126,7 @@ function newmutations(cancercell::cancercellCN,
     end
 
     b = cancercell.binitial
+    d = cancercell.dinitial
 
     #change copy number state of chromosomes
     for i in 1:cancercell.chromosomes.N
@@ -132,9 +141,10 @@ function newmutations(cancercell::cancercellCN,
         end
     end
 
-    b = fitnessfunc(cancercell, s, b)
+    b, d = fitnessfunc(cancercell, s, b, d)
 
     cancercell.b = b
+    cancercell.d = d
 
     if cancercell.b + cancercell.d > Rmax
       Rmax = cancercell.b + cancercell.d
@@ -210,22 +220,4 @@ function simulate(b, d, Nmax, Nchr;
     end
 
     return cells, tvec, Rmax
-end
-
-function copynumberfrequency(cells::Array{cancercellCN, 1})
-    #return frequency of copy number mutations, note that we check if
-    # copy number can be 0 even if this is not the case
-
-    N = length(cells)
-    Nchr = cells[1].chromosomes.N
-
-    CNstates = hcat(map(x -> x.chromosomes.CN, cells)...)'
-    maxCN = maximum(CNstates)
-    frequencymatrix = zeros(maxCN + 1, Nchr)
-
-    for i in 1:Nchr
-        frequencymatrix[:, i] = counts(CNstates[:, i], 0:maxCN)
-    end
-
-    return frequencymatrix ./ N
 end

@@ -15,7 +15,8 @@ import Base.show
 
 export
     copynumberfrequency,
-    simulate
+    simulate,
+    sitefrequency
 
 
 ### source files
