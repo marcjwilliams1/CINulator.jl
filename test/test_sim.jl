@@ -98,3 +98,13 @@ plot(cells)
 
 #imposed strong selection for chromosome 2 to be diploid, so modal value should be 2.
 @test findmax(f[:, 2])[2] - 1 == 2
+
+# test if initializing with N0 > 1 works
+N0 = 100
+t, tvec, N, Nvec, cells = CINulator.initializesim(log(2), 0.0, 5, N0 = N0)
+@test length(cells) == N0
+cells1, t1, Rmax1 = CINulator.simulate(b, d, 200, Nchr,
+                μ = μ, s = s, N0 = 1)
+cells2, t2, Rmax2 = CINulator.simulate(b, d, 200, Nchr,
+                μ = μ, s = s, N0 = 100)
+@test length(t2) < length(t1)

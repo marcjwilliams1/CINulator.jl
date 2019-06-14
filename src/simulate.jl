@@ -58,22 +58,23 @@ function copycell(cancercellold::cancercellCN)
   cancercellold.chromosomes))
 end
 
-function initializesim(b, d, Nchr)
+function initializesim(b, d, Nchr; N0 = 1)
 
     #initialize time to zero
     t = 0.0
     tvec = Float64[]
     push!(tvec,t)
 
-    #population starts with one cell
-    N = 1
+    N = N0
     Nvec = Int64[]
     push!(Nvec,N)
 
     #Initialize array of cell type that stores mutations for each cell and their fitness type
     #fitness type of 1 is the host population, lowest fitness
     cells = cancercellCN[]
-    push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr)))
+    for i in 1:N0
+        push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr)))
+    end
 
     return t, tvec, N, Nvec, cells
 end
@@ -157,7 +158,7 @@ exptime() = - log(rand())
 meantime() = 1
 
 function simulate(b, d, Nmax, Nchr;
-    μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
+    N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
     timefunction::Function = exptime, fitnessfunc = multiplicativefitness)
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
@@ -165,7 +166,7 @@ function simulate(b, d, Nmax, Nchr;
     Rmax = b + d
 
     #initialize arrays and parameters
-    t, tvec, N, Nvec, cells = initializesim(b, d, Nchr)
+    t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0)
     while N < Nmax
 
         #pick a random cell
