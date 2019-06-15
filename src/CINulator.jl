@@ -7,6 +7,7 @@ using Statistics
 using Random
 using RecipesBase
 using Reexport
+using DataFrames
 @reexport using Plots
 import Plots: _cycle
 #using Plots.PlotMeasures
@@ -16,7 +17,9 @@ import Base.show
 export
     copynumberfrequency,
     simulate,
-    sitefrequency
+    sitefrequency,
+    celldataframe,
+    mergecelldataframe
 
 
 ### source files

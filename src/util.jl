@@ -44,3 +44,24 @@ function sitefrequency(cells::Array{cancercellCN, 1}, chr)
 
     return filter!(x -> x > 0, frequency)
 end
+
+
+function celldataframe(cell; id = randstring(10))
+    chr = 1:cell.chromosomes.N
+    startseg = fill(1, cell.chromosomes.N)
+    endseg = fill(100e6, cell.chromosomes.N)
+    CNstates = cell.chromosomes.CN
+    copy = CNstates .+ rand(Normal(0, 0.25), cell.chromosomes.N)
+    DF = DataFrame(chr = chr,
+                start = startseg,
+                endseg = endseg,
+                cell_id = id,
+                state = CNstates,
+                copy = copy,
+                fitness = cell.b - cell.d)
+    return DF
+end
+
+function mergecelldataframe(cells)
+    return vcat(map(x -> celldataframe(x), cells)...)
+end

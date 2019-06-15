@@ -220,3 +220,22 @@ cells1, t1, Rmax1 = CINulator.simulate(b, d, 200, Nchr,
 cells2, t2, Rmax2 = CINulator.simulate(b, d, 200, Nchr,
                 μ = μ, s = s, N0 = 100)
 @test length(t2) < length(t1)
+
+
+
+#testing get CN bins dataframe
+
+#test adding optimum
+Nchr = 4
+Nmax = 10^5
+b = log(2)
+d = 0.2
+μ = CINulator.Chrmutrate(Nchr,
+        mutratesgain = [0.2, 0.2, 0.2, 0.0],
+        mutratesloss = [0.2, 0.2, 0.2, 0.0])
+s = CINulator.Chrfitness(Nchr, fitness = [0.1, 0.3, 0.0, 0.0],
+        optimum = [2, 4, 1, 10])
+cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
+                μ = μ, s = s)
+df = celldataframe(cells[1])
+df = mergecelldataframe(cells)
