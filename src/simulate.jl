@@ -30,21 +30,15 @@ mutable struct Chrmutrate
 end
 
 mutable struct Chrfitness
-    loss::Array{Float64, 1}
-    gain::Array{Float64, 1}
+    fitness::Array{Float64, 1}
     optimum::Array{Int64, 1}
-    function Chrfitness(N; m = 0.1, fitnessloss = [], fitnessgain = [], optimum = [])
-        if isempty(fitnessloss)
-            fitnessloss = rand(Gamma(m), N)
-            fitnessgain = rand(Gamma(m), N)
+    function Chrfitness(N; m = 0.1, fitness = [], optimum = [])
+        if isempty(fitness)
+            fitness = rand(Gamma(m), N)
             optimum = rand(1:6, N)
-            idx = fitnessloss .> fitnessgain
-            optimum[idx] = fill(1, sum(idx))
-            idx = fitnessloss .< fitnessgain
-            optimum[idx] = rand(3:6, sum(idx))
             optimum .= 20
         end
-        return new(fitnessloss, fitnessgain, optimum)
+        return new(fitness, optimum)
     end
 end
 
@@ -91,28 +85,24 @@ function multiplicativefitness(cancercell, chrfitness, b, d)
   gain_or_loss = cancercell.chromosomes.CN -
         fill(2, cancercell.chromosomes.N)
   distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
-  distancefromoptimum[distancefromoptimum .< 0.001] .= -1.0
-  distancefromoptimum = distancefromoptimum .+ 1.0
+  #println(distancefromoptimum)
 
   j = 1
-  for CNstate in gain_or_loss
-      gain = CNstate > 0
-      if gain == true
-          if chrfitness.gain[j] >= 0.0
-              #println([distancefromoptimum[j], chrfitness.gain[j], abs(CNstate)])
-              b = b * ((1.0 + chrfitness.gain[j]) .^ abs(CNstate)) * ((1.0 + chrfitness.gain[j]) .^ -distancefromoptimum[j])
-          else
-              d = d * ((1.0 - chrfitness.gain[j]) .^ abs(CNstate)) * ((1.0 - chrfitness.gain[j]) .^ -distancefromoptimum[j])
-          end
+  for dist in distancefromoptimum
+      #println("b is $b, d is $d, CN state is $CNstate")
+          #println("gain")
+      if chrfitness.fitness[j] >= 0.0
+          #println([dist, chrfitness.fitness[j]])
+          power = - sign(dist) * dist  + 2
+          b = b * (1.0 + chrfitness.fitness[j]) .^ power
       else
-          if chrfitness.loss[j] >= 0.0
-              b = b * ((1.0 + chrfitness.loss[j]) .^ abs(CNstate)) * ((1.0 + chrfitness.loss[j]) .^ -distancefromoptimum[j])
-          else
-              d = d * ((1.0 - chrfitness.loss[j]) .^ abs(CNstate)) * ((1.0 - chrfitness.loss[j]) .^ -distancefromoptimum[j])
-          end
+          #println([dist, chrfitness.fitness[j]])
+          power = - sign(dist) * dist  + 2
+          d = d * (1.0 + chrfitness.fitness[j]) .^ power
       end
-      j += 1
+  j += 1
   end
+  #println("b is $b")
 
   return b, d
 end
@@ -166,6 +156,15 @@ end
 exptime() = - log(rand())
 meantime() = 1
 
+function getfitness(cells, chrfitness, b, d; fitnessfunc = multiplicativefitness)
+    for i in 1:length(cells)
+        newb, newd = fitnessfunc(cells[i], chrfitness, b, d)
+        cells[i].b = newb
+        cells[i].d = newd
+    end
+    return cells
+end
+
 function simulate(b, d, Nmax, Nchr;
     N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
     timefunction::Function = exptime, fitnessfunc = multiplicativefitness)
@@ -176,6 +175,7 @@ function simulate(b, d, Nmax, Nchr;
 
     #initialize arrays and parameters
     t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0)
+    cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
     while N < Nmax
 
         #pick a random cell

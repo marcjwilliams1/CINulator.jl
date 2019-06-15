@@ -8,80 +8,118 @@ mu = CINulator.Chrmutrate(20, m = 0.1)
 @test (mu.gain .>= 0.0) == fill(true, length(mu.gain))
 
 fit = CINulator.Chrfitness(100, m = 0.1)
-@test length(fit.gain) == 100
-@test (fit.gain .>= 0.0) == fill(true, length(fit.gain))
-@test (fit.loss .< fit.gain) == (fit.optimum .!= 1)
+@test length(fit.fitness) == 100
+@test (fit.fitness .>= 0.0) == fill(true, length(fit.fitness))
 
-x = CINulator.initializesim(0.5, 0.0, 20)
-fit = CINulator.Chrfitness(20, m = 0.1)
-fit.optimum .= 10 #fix high optimum so it's not reached
+x = CINulator.initializesim(0.5, 0.0, 2)
+fit = CINulator.Chrfitness(2, m = 0.1)
+fit.optimum .= 2 #fix high optimum so it's not reached
 @test x[5][1].chromosomes.CN[1] == 2
 
 #test fitness calculations
 x[5][1].chromosomes.CN[1] = 3
-x[5][1].chromosomes.CN[3] = 1
-fit.gain[1] = 0.5
-fit.loss[3] = -0.9
+x[5][1].chromosomes.CN[2] = 1
+fit.fitness[1] = 0.5
+fit.fitness[2] = -0.9
 bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
 @test isapprox(bdrates[1], (log(2) * (1 + 0.5)), rtol = 0.01)
-@test isapprox(bdrates[2], 0.1 * (1 + 0.9))
+@test isapprox(bdrates[2], 0.1 * (1 - 0.9))
 
-x = CINulator.initializesim(0.5, 0.0, 20)
+x = CINulator.initializesim(0.5, 0.0, 2)
 x[5][1].chromosomes.CN[1] = 4
-x[5][1].chromosomes.CN[3] = 1
-fit.gain[1] = 0.5
-fit.loss[3] = -0.9
+x[5][1].chromosomes.CN[2] = 1
+fit.fitness[1] = 0.5
+fit.optimum[1] = 4
+fit.fitness[2] = -0.8
+fit.optimum[2] = 1
 bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
 @test isapprox(bdrates[1], (log(2) * (1 + 0.5)^2), rtol = 0.01)
-@test isapprox(bdrates[2], (0.1 * (1 +  0.9)), rtol = 0.01)
+@test isapprox(bdrates[2], (0.1 * (1 - 0.8)^2), rtol = 0.1)
 
-x = CINulator.initializesim(0.5, 0.0, 20)
+x = CINulator.initializesim(0.5, 0.0, 2)
 x[5][1].chromosomes.CN[1] = 3
-x[5][1].chromosomes.CN[3] = 0
-fit.gain[1] = 0.5
-fit.loss[3] = -0.9
+x[5][1].chromosomes.CN[2] = 0
+fit.fitness[1] = 0.5
+fit.fitness[2] = -0.9
 bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
 @test isapprox(bdrates[1], (log(2) * (1 + 0.5)^1), rtol = 0.01)
-@test isapprox(bdrates[2], (0.1 * (1 +  0.9) ^2), rtol = 0.01)
 
-x = CINulator.initializesim(0.5, 0.0, 20)
+x = CINulator.initializesim(0.5, 0.0, 2)
 x[5][1].chromosomes.CN[1] = 2
-x[5][1].chromosomes.CN[3] = 2
-mu.gain[3] = 0.0
+x[5][1].chromosomes.CN[2] = 2
+mu.gain[2] = 0.0
 mu.loss[1] = 0.0
 mu.gain[1] = 10.0
-mu.loss[3] = 10.0
+mu.loss[2] = 10.0
 c, Rmax = CINulator.newmutations(x[5][1], mu, fit, 1.0, 10.0, CINulator.multiplicativefitness)
 @test c.chromosomes.CN[1] == 3
-@test c.chromosomes.CN[3] == 1
+@test c.chromosomes.CN[2] == 1
 
 #test if passing optimum results in decreased fitness
-x = CINulator.initializesim(0.5, 0.0, 20)
-fit = CINulator.Chrfitness(20, m = 0.1)
+x = CINulator.initializesim(0.5, 0.0, 2)
+fit = CINulator.Chrfitness(2, m = 0.1)
 fit.optimum .= 4
 
 x[5][1].chromosomes.CN[1] = 5
-x[5][1].chromosomes.CN[3] = 1
-fit.gain[1] = 0.5
-fit.loss[3] = -0.9
+x[5][1].chromosomes.CN[2] = 1
+fit.fitness[1] = 0.5
+fit.optimum[1] = 4
+fit.fitness[2] = 0.9
+fit.optimum[2] = 2
 bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
-@test isapprox(bdrates[1], (log(2) * (1 + 0.5)^3 * (1 + 0.5) ^ -2), rtol = 0.01)
-@test isapprox(bdrates[2], 0.1 * (1 + 0.9))
+@test isapprox(bdrates[1], (log(2) * (1 + 0.5)^1 * (1 + 0.9)), rtol = 0.01)
+@test isapprox(bdrates[2], 0.1 * (1 - 0.9) ^ 0)
 
 #copy number state of 3 should have same fitness as copy number state 5 because
 # the optimum is 4
 x[5][1].chromosomes.CN[1] = 3
 bdrates2 = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
-@test isapprox(bdrates2[1], (log(2) * (1 + 0.5)^1 * (1 + 0.5) ^ 0), rtol = 0.01)
 @test bdrates2[1] == bdrates[1]
 
-#
+# test get correct fittest CN state
 rates = Float64[]
-for i in [2,3,4,5,6,7]
+fit = CINulator.Chrfitness(2, m = 0.1)
+fit.optimum .= 2
+fit.fitness[1] = 0.5
+for i in [1, 2,3,4,5,6,7]
     x[5][1].chromosomes.CN[1] = i
     bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
     push!(rates, bdrates[1])
 end
+@test findmax(rates)[2] == 2
+
+rates = Float64[]
+fit = CINulator.Chrfitness(2, m = 0.1)
+fit.optimum .= 1
+fit.fitness[1] = 0.5
+for i in [1, 2,3,4,5,6,7]
+    x[5][1].chromosomes.CN[1] = i
+    bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
+    push!(rates, bdrates[1])
+end
+@test findmax(rates)[2] == 1
+
+rates = Float64[]
+fit = CINulator.Chrfitness(2, m = 0.1)
+fit.optimum .= 5
+fit.fitness[1] = 0.5
+for i in [1, 2,3,4,5,6,7]
+    x[5][1].chromosomes.CN[1] = i
+    bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
+    push!(rates, bdrates[1])
+end
+@test findmax(rates)[2] == 5
+
+
+#test if passing optimum results in decreased fitness
+x = CINulator.initializesim(0.5, 0.0, 1)
+fit = CINulator.Chrfitness(1, m = 0.1)
+fit.optimum .= 2
+
+x[5][1].chromosomes.CN[1] = 3
+fit.fitness[1] = 0.5
+fit.optimum[1] = 2
+bdrates = CINulator.multiplicativefitness(x[5][1], fit, log(2), 0.1)
 
 
 
@@ -94,8 +132,7 @@ d = 0.2
 μ = CINulator.Chrmutrate(Nchr,
         mutratesgain = [0.2, 0.2, 0.2, 0.0],
         mutratesloss = [0.2, 0.2, 0.2, 0.0])
-s = CINulator.Chrfitness(Nchr, fitnessgain = [0.0, 0.1, 0.0, 0.0],
-        fitnessloss = [0.0, 0.0, 0.1, 0.0],
+s = CINulator.Chrfitness(Nchr, fitness= [0.0, 0.1, 0.0, 0.0],
         optimum = [10, 10, 10, 10])
 cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s)
@@ -126,9 +163,8 @@ d = 0.3
 μ = CINulator.Chrmutrate(Nchr,
         mutratesgain = [0.2, 0.2, 0.2, 0.0],
         mutratesloss = [0.2, 0.2, 0.2, 0.0])
-s = CINulator.Chrfitness(Nchr, fitnessgain = [0.0, -0.9, 0.0, 0.0],
-        fitnessloss = [0.0, -0.9, 0.1, 0.0],
-        optimum = [10, 10, 10, 10])
+s = CINulator.Chrfitness(Nchr, fitness = [0.0, 0.9, 0.0, 0.0],
+        optimum = [3, 2, 5, 5])
 cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s)
 f = copynumberfrequency(cells)
@@ -145,14 +181,33 @@ d = 0.2
 μ = CINulator.Chrmutrate(Nchr,
         mutratesgain = [0.2, 0.2, 0.2, 0.0],
         mutratesloss = [0.2, 0.2, 0.2, 0.0])
-s = CINulator.Chrfitness(Nchr, fitnessgain = [0.1, 0.3, 0.0, 0.0],
-        fitnessloss = [0.1, 0.0, 0.3, 0.0],
+s = CINulator.Chrfitness(Nchr, fitness = [0.1, 0.3, 0.0, 0.0],
         optimum = [2, 4, 1, 10])
 cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s)
 f = copynumberfrequency(cells)
 plot(cells)
 @test findmax(f[:, 2])[2] - 1 == 4
+
+
+
+
+
+#test adding optimum
+Nchr = 1
+Nmax = 10^5
+b = log(2)
+d = 0.2
+μ = CINulator.Chrmutrate(Nchr,
+        mutratesgain = [0.1],
+        mutratesloss = [0.1])
+s = CINulator.Chrfitness(Nchr, fitness = [0.9],
+        optimum = [2])
+cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
+                μ = μ, s = s)
+f = copynumberfrequency(cells)
+plot(cells)
+@test findmax(f[:, 1])[2] - 1 == 2
 
 
 
