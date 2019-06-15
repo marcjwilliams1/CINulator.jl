@@ -52,7 +52,7 @@ function celldataframe(cell; id = randstring(10),
     startseg = fill(1, cell.chromosomes.N)
     endseg = chrlengths[1:cell.chromosomes.N]
     CNstates = cell.chromosomes.CN
-    DF = DataFrame(chr = chr,
+    DF = DataFrame(chr = map(x -> string(x), chr),
                 start = startseg,
                 endseg = endseg,
                 cell_id = id,
