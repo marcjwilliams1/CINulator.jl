@@ -239,3 +239,4 @@ cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s)
 df = celldataframe(cells[1])
 df = mergecelldataframe(cells)
+@test length(unique(df[:cell_id])) == Nmax
