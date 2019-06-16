@@ -167,7 +167,8 @@ end
 
 function simulate(b, d, Nmax, Nchr;
     N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
-    timefunction::Function = exptime, fitnessfunc = multiplicativefitness)
+    timefunction::Function = exptime, fitnessfunc = multiplicativefitness,
+    maxCN = 6, minCN = 1)
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
@@ -193,9 +194,9 @@ function simulate(b, d, Nmax, Nchr;
             push!(cells,copycell(cells[randcell]))
             #add new mutations to both new cells
             cells[randcell], Rmax = newmutations(cells[randcell], μ, s, Rmax,
-            t, fitnessfunc)
+            t, fitnessfunc, maxCN = maxCN, minCN = minCN)
             cells[end], Rmax = newmutations(cells[end], μ, s, Rmax, t,
-            fitnessfunc)
+            fitnessfunc, maxCN = maxCN, minCN = minCN)
             push!(Nvec, N)
             Δt =  1/(Rmaxt * Nt) * timefunction()
             t = t + Δt
