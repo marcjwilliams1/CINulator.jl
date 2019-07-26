@@ -1,10 +1,10 @@
 using CINulator
-using Distributions
+using Distribution
 using Test
 using Random
 using Statistics
 
-tests = ["sim"]
+tests = ["sim", "optim"]
 
 println("Running tests ...")
 

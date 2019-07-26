@@ -32,13 +32,14 @@ end
 mutable struct Chrfitness
     fitness::Array{Float64, 1}
     optimum::Array{Int64, 1}
-    function Chrfitness(N; m = 0.1, fitness = [], optimum = [])
+    alpha::Float64
+    function Chrfitness(N; m = 0.1, fitness = [], optimum = [], alpha = 0.0)
         if isempty(fitness)
             fitness = rand(Gamma(m), N)
             optimum = rand(1:6, N)
             optimum .= 20
         end
-        return new(fitness, optimum)
+        return new(fitness, optimum, alpha)
     end
 end
 
@@ -78,6 +79,15 @@ function initializesim(b, d, Nchr; N0 = 1)
     end
 
     return t, tvec, N, Nvec, cells
+end
+
+function optimumfitness(cancercell, chrfitness, b, d)
+
+    distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
+    propb = 1.0
+    b = (propb * b)  / (sum(abs.(distancefromoptimum)) * chrfitness.alpha + 1)
+
+    return b, d
 end
 
 function multiplicativefitness(cancercell, chrfitness, b, d)
@@ -173,17 +183,22 @@ function simulate(b, d, Nmax, Nchr;
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
     Rmax = b + d
+    println("initial Rmax: $Rmax")
 
     #initialize arrays and parameters
     t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0)
     cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
     while N < Nmax
+        #println(N)
 
         #pick a random cell
         randcell = rand(1:N)
         r = rand(Uniform(0, Rmax))
 	    Nt = N
         Rmaxt = Rmax
+        #println("b: $(cells[randcell].b), d: $(cells[randcell].d)")
+        #println("CN: $(cells[randcell].chromosomes)")
+        #println([cells[randcell].b, cells[randcell].d, r])
 
         #birth event if r<birthrate, access correct birthrate from cells array
         if r < cells[randcell].b
@@ -230,5 +245,5 @@ function simulate(b, d, Nmax, Nchr;
         end
     end
 
-    return cells, tvec, Rmax
+    return cells, (tvec, Nvec), Rmax
 end
