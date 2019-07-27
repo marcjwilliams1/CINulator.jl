@@ -143,13 +143,13 @@ function newmutations(cancercell::cancercellCN,
     #change copy number state of chromosomes
     for i in 1:cancercell.chromosomes.N
         cancercell.chromosomes.CN[i] += mutations_gain[i] - mutations_loss[i]
-        #CN cannot go below minCN
-        if cancercell.chromosomes.CN[i] <= minCN
-            cancercell.chromosomes.CN[i] = minCN
+        #CN cannot go below minCN, cell dies
+        if cancercell.chromosomes.CN[i] < minCN
+            #cancercell.chromosomes.CN[i] = minCN
             killcell = true
         end
         #CN cannot exceed maxCN
-        if cancercell.chromosomes.CN[i] >= maxCN
+        if cancercell.chromosomes.CN[i] > maxCN
             cancercell.chromosomes.CN[i] = maxCN
         end
     end
@@ -192,8 +192,6 @@ function simulate(b, d, Nmax, Nchr;
     t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0)
     cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
     while N < Nmax
-        #println(N)
-
         #pick a random cell
         randcell = rand(1:N)
         r = rand(Uniform(0, Rmax))

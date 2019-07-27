@@ -98,7 +98,6 @@ cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s,
                 fitnessfunc = CINulator.optimumfitness)
 @test abs(cor(dist, fitness)) < 0.001
-@test sum(map(x -> x.b, cells) .== b) == Nmax
 f = copynumberfrequency(cells)
 plot(cells)
 

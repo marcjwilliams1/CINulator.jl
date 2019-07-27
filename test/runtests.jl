@@ -1,5 +1,5 @@
 using CINulator
-using Distribution
+using Distributions
 using Test
 using Random
 using Statistics
