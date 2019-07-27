@@ -76,6 +76,10 @@ s = CINulator.Chrfitness(Nchr, fitness = [0.1, 0.3, 0.0, 0.0],
 cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s,
                 fitnessfunc = CINulator.optimumfitness)
+dist = map(x -> sum(abs.(x.chromosomes.CN .- s.optimum)), cells)
+fitness = map(x -> x.b - x.d, cells)
+
+
 @test abs(cor(dist, fitness)) < 0.001
 @test sum(map(x -> x.b, cells) .== b) == Nmax
 f = copynumberfrequency(cells)
@@ -84,7 +88,9 @@ plot(cells)
 
 
 
-#with alpha = 0.0
+#with alpha = 0.0, small Nmax
+Nmax = 10^2
+Nchr = 4
 s = CINulator.Chrfitness(Nchr, fitness = [0.1, 0.1, 0.1, 0.1],
         optimum = [2, 2, 2, 2],
         alpha = 1)
@@ -103,3 +109,21 @@ plot(cells)
 
 df = celldataframe(cells[1])
 df = mergecelldataframe(cells)
+
+df1 = CINulator.copynumbernoise(df, celldist = Beta(0.01, 0.1))
+df2 = CINulator.copynumbernoise(df, celldist = Beta(1, 0.1))
+
+#check initialization
+mut = 0.00
+μ = CINulator.Chrmutrate(Nchr,
+        mutratesgain = fill(mut, 4),
+        mutratesloss = fill(mut, 4))
+cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
+                μ = μ, s = s,
+                fitnessfunc = CINulator.optimumfitness,
+                states = [4,3,2,1])
+f = copynumberfrequency(cells)
+@test findmax(f[:, 1])[2] - 1 == 4
+@test findmax(f[:, 2])[2] - 1 == 3
+@test findmax(f[:, 3])[2] - 1 == 2
+@test findmax(f[:, 4])[2] - 1 == 1

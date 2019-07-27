@@ -1,8 +1,13 @@
 mutable struct Chromosomes
     CN::Array{Int64, 1}
     N::Int64
-    function Chromosomes(N)
-        return new(fill(2, N), N)
+    function Chromosomes(N, states = [])
+        if isempty(states)
+            CN = fill(2, N)
+        else
+            CN = states
+        end
+        return new(CN, N)
     end
 end
 
@@ -60,7 +65,7 @@ function copycell(cancercellold::cancercellCN)
   cancercellold.chromosomes))
 end
 
-function initializesim(b, d, Nchr; N0 = 1)
+function initializesim(b, d, Nchr; N0 = 1, states = [])
 
     #initialize time to zero
     t = 0.0
@@ -75,7 +80,7 @@ function initializesim(b, d, Nchr; N0 = 1)
     #fitness type of 1 is the host population, lowest fitness
     cells = cancercellCN[]
     for i in 1:N0
-        push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr)))
+        push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr, states)))
     end
 
     return t, tvec, N, Nvec, cells
@@ -181,7 +186,7 @@ end
 function simulate(b, d, Nmax, Nchr;
     N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
     timefunction::Function = exptime, fitnessfunc = multiplicativefitness,
-    maxCN = 6, minCN = 1)
+    maxCN = 6, minCN = 1, states = [])
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
@@ -189,7 +194,7 @@ function simulate(b, d, Nmax, Nchr;
     println("initial Rmax: $Rmax")
 
     #initialize arrays and parameters
-    t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0)
+    t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
     cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
     while N < Nmax
         #pick a random cell
@@ -250,7 +255,7 @@ function simulate(b, d, Nmax, Nchr;
 
         #every cell dies reinitialize simulation
         if (N == 0)
-            t, tvec, N, Nvec, cells = initializesim(b, d, Nchr)
+            t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
         end
     end
 
