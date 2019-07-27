@@ -88,7 +88,7 @@ plot(cells)
 s = CINulator.Chrfitness(Nchr, fitness = [0.1, 0.1, 0.1, 0.1],
         optimum = [2, 2, 2, 2],
         alpha = 1)
-mut = 0.1
+mut = 0.01
 μ = CINulator.Chrmutrate(Nchr,
         mutratesgain = fill(mut, 4),
         mutratesloss = fill(mut, 4))
@@ -101,3 +101,6 @@ cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
 @test sum(map(x -> x.b, cells) .== b) == Nmax
 f = copynumberfrequency(cells)
 plot(cells)
+
+df = celldataframe(cells[1])
+df = mergecelldataframe(cells)
