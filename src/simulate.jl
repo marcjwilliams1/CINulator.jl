@@ -138,12 +138,15 @@ function newmutations(cancercell::cancercellCN,
     b = cancercell.binitial
     d = cancercell.dinitial
 
+    killcell = false
+
     #change copy number state of chromosomes
     for i in 1:cancercell.chromosomes.N
         cancercell.chromosomes.CN[i] += mutations_gain[i] - mutations_loss[i]
         #CN cannot go below minCN
         if cancercell.chromosomes.CN[i] <= minCN
             cancercell.chromosomes.CN[i] = minCN
+            killcell = true
         end
         #CN cannot exceed maxCN
         if cancercell.chromosomes.CN[i] >= maxCN
@@ -160,7 +163,7 @@ function newmutations(cancercell::cancercellCN,
       Rmax = cancercell.b + cancercell.d
     end
 
-    return cancercell, Rmax
+    return cancercell, Rmax, killcell
 end
 
 exptime() = - log(rand())
@@ -208,10 +211,18 @@ function simulate(b, d, Nmax, Nchr;
             #copy cell and mutations for cell that reproduces
             push!(cells,copycell(cells[randcell]))
             #add new mutations to both new cells
-            cells[randcell], Rmax = newmutations(cells[randcell], μ, s, Rmax,
+            cells[randcell], Rmax, killcell = newmutations(cells[randcell], μ, s, Rmax,
             t, fitnessfunc, maxCN = maxCN, minCN = minCN)
-            cells[end], Rmax = newmutations(cells[end], μ, s, Rmax, t,
+            if killcell == true
+                N = N - 1
+                deleteat!(cells,randcell)
+            end
+            cells[end], Rmax, killcell = newmutations(cells[end], μ, s, Rmax, t,
             fitnessfunc, maxCN = maxCN, minCN = minCN)
+            if killcell == true
+                N = N - 1
+                deleteat!(cells,length(cells))
+            end
             push!(Nvec, N)
             Δt =  1/(Rmaxt * Nt) * timefunction()
             t = t + Δt
