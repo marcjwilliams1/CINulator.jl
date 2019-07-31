@@ -41,6 +41,8 @@ mutable struct Chrfitness
     function Chrfitness(N; m = 0.1, fitness = [], optimum = [], alpha = 0.0)
         if isempty(fitness)
             fitness = rand(Gamma(m), N)
+        end
+        if isempty(optimum)
             optimum = rand(1:6, N)
             optimum .= 20
         end
@@ -205,8 +207,35 @@ function simulate(b, d, Nmax, Nchr;
         #println("b: $(cells[randcell].b), d: $(cells[randcell].d)")
         #println("CN: $(cells[randcell].chromosomes)")
         #println([cells[randcell].b, cells[randcell].d, r])
-
         #birth event if r<birthrate, access correct birthrate from cells array
+
+        #nothing if r > b+d
+        if ((cells[randcell].b + cells[randcell].d) <= r )
+          push!(Nvec, N)
+          Δt =  1/(Rmax * Nt) * timefunction()
+          t = t + Δt
+          push!(tvec,t)
+        end
+
+        #death event if b<r<b+d
+        if (cells[randcell].b <= r < (cells[randcell].b + cells[randcell].d))
+            #population decreases by 1
+            N = N - 1
+            #frequency of cell type decreases
+            #remove deleted cell
+            deleteat!(cells,randcell)
+            push!(Nvec,N)
+            Δt =  1/(Rmax * Nt) * timefunction()
+            t = t + Δt
+            push!(tvec,t)
+            #every cell dies reinitialize simulation
+            if (N == 0)
+                t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
+            end
+            continue
+        end
+
+        #birth event if b < r
         if r < cells[randcell].b
 
             #population increases by one
@@ -232,26 +261,9 @@ function simulate(b, d, Nmax, Nchr;
             push!(tvec,t)
         end
 
-        #nothing if r > b+d
-        if ((cells[randcell].b + cells[randcell].d) <= r )
-          push!(Nvec, N)
-          Δt =  1/(Rmax * Nt) * timefunction()
-          t = t + Δt
-          push!(tvec,t)
-        end
-
-        #death event if b<r<b+d
-        if (cells[randcell].b <= r < (cells[randcell].b + cells[randcell].d))
-            #population decreases by 1
-            N = N - 1
-            #frequency of cell type decreases
-            #remove deleted cell
-            deleteat!(cells,randcell)
-            push!(Nvec,N)
-            Δt =  1/(Rmax * Nt) * timefunction()
-            t = t + Δt
-            push!(tvec,t)
-        end
+        #if randcell > length(cells)
+        #    println("$N, $(length(cells)), $randcell, $r")
+        #end
 
         #every cell dies reinitialize simulation
         if (N == 0)

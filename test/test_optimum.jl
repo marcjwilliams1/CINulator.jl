@@ -127,3 +127,48 @@ f = copynumberfrequency(cells)
 @test findmax(f[:, 2])[2] - 1 == 3
 @test findmax(f[:, 3])[2] - 1 == 2
 @test findmax(f[:, 4])[2] - 1 == 1
+
+
+
+
+opt = 1.0
+Nchr = 22
+Nmax = 10^4
+b = log(2)
+d = 0.3
+s = CINulator.Chrfitness(Nchr, fitness = fill(0.1, Nchr),
+        optimum = fill(2, Nchr),
+        alpha = opt)
+
+mut = 0.1/Nchr
+μ = CINulator.Chrmutrate(Nchr,
+        mutratesgain = fill(mut, Nchr),
+        mutratesloss = fill(mut, Nchr))
+
+Random.seed!(1234)
+states = fill(2, Nchr)
+states[1] = 1
+t, tvec, N, Nvec, cells = CINulator.initializesim(b, d, Nchr, N0 = 1, states = states)
+cells = CINulator.getfitness(cells, s, b, d, fitnessfunc = CINulator.optimumfitness)
+@time cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
+                μ = μ, s = s,
+                fitnessfunc = CINulator.optimumfitness)
+
+
+
+Nchr = 22
+Nmax = 10^4
+b = log(2)
+d = 0.1
+s = CINulator.Chrfitness(Nchr,
+        optimum = fill(2, Nchr),
+        alpha = opt)
+
+mut = 0.1/Nchr
+μ = CINulator.Chrmutrate(Nchr,
+        mutratesgain = fill(mut, Nchr),
+        mutratesloss = fill(mut, Nchr))
+
+@time cells, t, Rmax = CINulator.simulate(b, d, Nmax, Nchr,
+                μ = μ, s = s,
+                fitnessfunc = CINulator.optimumfitness)
