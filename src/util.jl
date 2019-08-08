@@ -79,3 +79,15 @@ function copynumbernoise(df; celldist = Beta(1))
 
     return df
 end
+
+function meanfitness(cells)
+    mean(map(x -> x.b, cells) .- map(x -> x.d, cells))
+end
+
+function mediangenotype(cells)
+    convert(Array{Int64, 1}, map(x -> round(x), median(hcat(map(x -> x.chromosomes.CN, cells)...), dims = 2))[:])
+end
+
+function meangenotype(cells)
+    mean(hcat(map(x -> x.chromosomes.CN, cells)...), dims = 2)
+end

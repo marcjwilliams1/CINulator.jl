@@ -88,13 +88,44 @@ function initializesim(b, d, Nchr; N0 = 1, states = [])
     return t, tvec, N, Nvec, cells
 end
 
-function optimumfitness(cancercell, chrfitness, b, d)
+function optimumfitness(;increasebirth = true)
+    if increasebirth == true
+        f = function (cancercell, chrfitness, b, d)
+            distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
+            dist = sum(abs.(distancefromoptimum))
+            smax = cancercell.binitial - cancercell.dinitial
 
-    distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
-    propb = 1.0
-    b = (propb * b)  / (sum(abs.(distancefromoptimum)) * chrfitness.alpha + 1)
+            s = smax / (dist * chrfitness.alpha + 1)
 
-    return b, d
+            b = s + cancercell.dinitial
+            d = b - s
+            #d = cancercell.dinitial * (1 + propd * s)
+
+            # b = (propb * b)  / (sum(abs.(distancefromoptimum)) * chrfitness.alpha + 1)
+            # d = (propd * d)  * (sum(abs.(distancefromoptimum)) * chrfitness.alpha + 1)
+            return b, d
+        end
+        return f
+    else
+        f = function (cancercell, chrfitness, b, d)
+            distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
+
+            dist = sum(abs.(distancefromoptimum))
+            smax = cancercell.binitial - cancercell.dinitial
+
+            s = smax / (dist * chrfitness.alpha + 1)
+
+            d = maximum([cancercell.binitial - s, cancercell.dinitial])
+            #d = cancercell.binitial - s
+            b = s + d
+            #d = cancercell.dinitial * (1 + propd * s)
+
+            # b = (propb * b)  / (sum(abs.(distancefromoptimum)) * chrfitness.alpha + 1)
+            # d = (propd * d)  * (sum(abs.(distancefromoptimum)) * chrfitness.alpha + 1)
+            return b, d
+        end
+        return f
+    end
 end
 
 function multiplicativefitness(cancercell, chrfitness, b, d)
@@ -177,11 +208,13 @@ exptime() = - log(rand())
 meantime() = 1
 
 function getfitness(cells, chrfitness, b, d; fitnessfunc = multiplicativefitness)
+    println(cells)
     for i in 1:length(cells)
         newb, newd = fitnessfunc(cells[i], chrfitness, b, d)
         cells[i].b = newb
         cells[i].d = newd
     end
+    println(cells)
     return cells
 end
 
@@ -192,12 +225,21 @@ function simulate(b, d, Nmax, Nchr;
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
-    Rmax = b + d
-    println("initial Rmax: $Rmax")
 
     #initialize arrays and parameters
     t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
     cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
+    brate = cells[1].b
+    drate = cells[1].d
+    Rmax = brate + drate
+    println("##################################")
+    println("Birth rate = $brate, death rate = $drate")
+    println("initial Rmax: $Rmax")
+    println("Mean fitness = $(meanfitness(cells))")
+    println("Initial distance from optimum: $(cells[1].chromosomes.CN .- s.optimum)")
+    #println(cells[1])
+    println("##################################")
+
     while N < Nmax
         #pick a random cell
         randcell = rand(1:N)
@@ -270,6 +312,18 @@ function simulate(b, d, Nmax, Nchr;
             t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
         end
     end
-
+    println()
+    println()
+    println("##################################")
+    println("Mean fitness = $(meanfitness(cells))")
+    println("Median genotype:")
+    println("$(mediangenotype(cells))")
+    println("Mean genotype:")
+    println("$(meangenotype(cells))")
+    println("Optimum genotype:")
+    println("$(s.optimum)")
+    println("Difference in genotype:")
+    println("$(s.optimum .-mediangenotype(cells))")
+    println("##################################")
     return cells, (tvec, Nvec), Rmax
 end

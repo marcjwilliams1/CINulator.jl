@@ -19,7 +19,8 @@ export
     simulate,
     sitefrequency,
     celldataframe,
-    mergecelldataframe
+    mergecelldataframe,
+    optimumfitness
 
 
 ### source files
