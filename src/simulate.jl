@@ -194,7 +194,8 @@ end
 function simulate(b, d, Nmax, Nchr;
     N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
     timefunction::Function = exptime, fitnessfunc = multiplicativefitness,
-    maxCN = 6, minCN = 1, states = [])
+    maxCN = 6, minCN = 1, states = [],
+    verbose = true)
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
@@ -205,13 +206,15 @@ function simulate(b, d, Nmax, Nchr;
     brate = cells[1].b
     drate = cells[1].d
     Rmax = brate + drate
-    println("##################################")
-    println("Birth rate = $brate, death rate = $drate")
-    println("initial Rmax: $Rmax")
-    println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
-    println("Initial distance from optimum: $(cells[1].chromosomes.CN .- s.optimum)")
-    #println(cells[1])
-    println("##################################")
+    if verbose
+        println("##################################")
+        println("Birth rate = $brate, death rate = $drate")
+        println("initial Rmax: $Rmax")
+        println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
+        println("Initial distance from optimum: $(cells[1].chromosomes.CN .- s.optimum)")
+        #println(cells[1])
+        println("##################################")
+    end
 
     while N < Nmax
         #pick a random cell
@@ -285,19 +288,21 @@ function simulate(b, d, Nmax, Nchr;
             t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
         end
     end
-    println()
-    println()
-    println("##################################")
-    println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
-    println("Median genotype:")
-    println("$(mediangenotype(cells))")
-    println("Mean genotype:")
-    println("$(meangenotype(cells))")
-    println("Optimum genotype:")
-    println("$(s.optimum)")
-    println("Difference in genotype:")
-    println("$(s.optimum .-mediangenotype(cells))")
-    println("##################################")
-    println()
+    if verbose
+        println()
+        println()
+        println("##################################")
+        println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
+        println("Median genotype:")
+        println("$(mediangenotype(cells))")
+        println("Mean genotype:")
+        println("$(meangenotype(cells))")
+        println("Optimum genotype:")
+        println("$(s.optimum)")
+        println("Difference in genotype:")
+        println("$(s.optimum .-mediangenotype(cells))")
+        println("##################################")
+        println()
+    end
     return cells, (tvec, Nvec), Rmax
 end
