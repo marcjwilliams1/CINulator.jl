@@ -22,7 +22,8 @@ export
     mergecelldataframe,
     optimumfitness,
     Chrfitness,
-    Chrmutrate
+    Chrmutrate,
+    samplecells
 
 
 ### source files
