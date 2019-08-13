@@ -191,9 +191,9 @@ function getfitness(cells, chrfitness, b, d; fitnessfunc = multiplicativefitness
     return cells
 end
 
-function simulate(b, d, Nmax, Nchr;
+function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
-    timefunction::Function = exptime, fitnessfunc = multiplicativefitness,
+    timefunction::Function = exptime, fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
     verbose = true)
 
@@ -292,6 +292,128 @@ function simulate(b, d, Nmax, Nchr;
         println()
         println()
         println("##################################")
+        println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
+        println("Median genotype:")
+        println("$(mediangenotype(cells))")
+        println("Mean genotype:")
+        println("$(meangenotype(cells))")
+        println("Optimum genotype:")
+        println("$(s.optimum)")
+        println("Difference in genotype:")
+        println("$(s.optimum .-mediangenotype(cells))")
+        println("##################################")
+        println()
+    end
+    return cells, (tvec, Nvec), Rmax
+end
+
+
+
+function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
+    μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
+    timefunction::Function = exptime, fitnessfunc = optimumfitness(),
+    maxCN = 6, minCN = 1, states = [],
+    verbose = true)
+
+    #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
+    # b and d have correct units
+
+    t = tvec[end]
+    Nvec[end] = length(cells)
+    N = Nvec[end]
+
+    #initialize arrays and parameters
+    brate = maximum(map(x -> x.b, cells))
+    drate = maximum(map(x -> x.d, cells))
+    Rmax = brate + drate
+    if verbose
+        println("##################################")
+        println("Current time = $t, current N = $N")
+        println("Birth rate = $brate, death rate = $drate")
+        println("initial Rmax: $Rmax")
+        println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
+        println("Initial distance from optimum: $(cells[1].chromosomes.CN .- s.optimum)")
+        #println(cells[1])
+        println("##################################")
+    end
+
+    while N < Nmax
+        #pick a random cell
+        randcell = rand(1:N)
+        r = rand(Uniform(0, Rmax))
+	    Nt = N
+        Rmaxt = Rmax
+        #println("b: $(cells[randcell].b), d: $(cells[randcell].d)")
+        #println("CN: $(cells[randcell].chromosomes)")
+        #println([cells[randcell].b, cells[randcell].d, r])
+        #birth event if r<birthrate, access correct birthrate from cells array
+
+        #nothing if r > b+d
+        if ((cells[randcell].b + cells[randcell].d) <= r )
+          push!(Nvec, N)
+          Δt =  1/(Rmax * Nt) * timefunction()
+          t = t + Δt
+          push!(tvec,t)
+        end
+
+        #death event if b<r<b+d
+        if (cells[randcell].b <= r < (cells[randcell].b + cells[randcell].d))
+            #population decreases by 1
+            N = N - 1
+            #frequency of cell type decreases
+            #remove deleted cell
+            deleteat!(cells,randcell)
+            push!(Nvec,N)
+            Δt =  1/(Rmax * Nt) * timefunction()
+            t = t + Δt
+            push!(tvec,t)
+            #every cell dies reinitialize simulation
+            if (N == 0)
+                t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
+            end
+            continue
+        end
+
+        #birth event if b < r
+        if r < cells[randcell].b
+
+            #population increases by one
+            N = N + 1
+            #copy cell and mutations for cell that reproduces
+            push!(cells,copycell(cells[randcell]))
+            #add new mutations to both new cells
+            cells[randcell], Rmax, killcell = newmutations(cells[randcell], μ, s, Rmax,
+            t, fitnessfunc, maxCN = maxCN, minCN = minCN)
+            if killcell == true
+                N = N - 1
+                deleteat!(cells,randcell)
+            end
+            cells[end], Rmax, killcell = newmutations(cells[end], μ, s, Rmax, t,
+            fitnessfunc, maxCN = maxCN, minCN = minCN)
+            if killcell == true
+                N = N - 1
+                deleteat!(cells,length(cells))
+            end
+            push!(Nvec, N)
+            Δt =  1/(Rmaxt * Nt) * timefunction()
+            t = t + Δt
+            push!(tvec,t)
+        end
+
+        #if randcell > length(cells)
+        #    println("$N, $(length(cells)), $randcell, $r")
+        #end
+
+        #every cell dies reinitialize simulation
+        if (N == 0)
+            t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
+        end
+    end
+    if verbose
+        println()
+        println()
+        println("##################################")
+        println("Current time = $t, current N = $N")
         println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
         println("Median genotype:")
         println("$(mediangenotype(cells))")
