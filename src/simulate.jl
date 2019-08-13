@@ -113,10 +113,10 @@ function optimumfitness(;increasebirth = true)
         f = function (cancercell, chrfitness, b, d)
             distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
 
-            dist = sum(abs.(distancefromoptimum))
+            dist = sum(chrfitness.alpha .* abs.(distancefromoptimum))
             smax = cancercell.binitial - cancercell.dinitial
 
-            s = smax / (dist * chrfitness.alpha + 1)
+            s = smax / (dist + 1)
 
             d = maximum([cancercell.binitial - s, cancercell.dinitial])
             #d = cancercell.binitial - s

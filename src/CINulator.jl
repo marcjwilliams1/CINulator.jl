@@ -20,7 +20,9 @@ export
     sitefrequency,
     celldataframe,
     mergecelldataframe,
-    optimumfitness
+    optimumfitness,
+    Chrfitness,
+    Chrmutrate
 
 
 ### source files
