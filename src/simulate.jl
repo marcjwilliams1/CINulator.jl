@@ -26,27 +26,30 @@ mutable struct Chrmutrate
     gain::Array{Float64, 1}
     function Chrmutrate(N; m = 0.1, mutratesgain = [],
         mutratesloss = [])
-        if isempty(mutratesgain)
+        if isempty(mutratesloss)
             mutratesloss = rand(Gamma(m), Int64(N))
+        end
+        if isempty(mutratesgain)
             mutratesgain = rand(Gamma(m), Int64(N))
         end
+        length(mutratesgain) == N || error("mutratesgain is length $(length(mutratesgain)), but number of chromosomes, N = $N. These should be equal")
+        length(mutratesloss) == N || error("mutratesloss is length $(length(mutratesloss)), but number of chromosomes, N = $N. These should be equal")
         return new(mutratesloss, mutratesgain)
     end
 end
 
+createalpha(alpha::Float64, N) = fill(alpha, N)
+createalpha(alpha::Array{Float64, 1}, N) = alpha
+
 mutable struct Chrfitness
-    fitness::Array{Float64, 1}
     optimum::Array{Int64, 1}
-    alpha::Float64
-    function Chrfitness(N; m = 0.1, fitness = [], optimum = [], alpha = 0.0)
-        if isempty(fitness)
-            fitness = rand(Gamma(m), N)
-        end
+    alpha::Array{Float64, 1}
+    function Chrfitness(N; optimum = [], alpha = 0.0)
         if isempty(optimum)
             optimum = rand(1:6, N)
-            optimum .= 20
         end
-        return new(fitness, optimum, alpha)
+        length(optimum) == N || error("optimum is length $(length(optimum)), but number of chromosomes, N = $N. These should be equal")
+        return new(optimum, createalpha(alpha, N))
     end
 end
 
@@ -92,10 +95,10 @@ function optimumfitness(;increasebirth = true)
     if increasebirth == true
         f = function (cancercell, chrfitness, b, d)
             distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
-            dist = sum(abs.(distancefromoptimum))
+            dist = sum(chrfitness.alpha .* abs.(distancefromoptimum))
             smax = cancercell.binitial - cancercell.dinitial
 
-            s = smax / (dist * chrfitness.alpha + 1)
+            s = smax / (dist + 1)
 
             b = s + cancercell.dinitial
             d = b - s
@@ -127,34 +130,6 @@ function optimumfitness(;increasebirth = true)
         return f
     end
 end
-
-function multiplicativefitness(cancercell, chrfitness, b, d)
-
-  gain_or_loss = cancercell.chromosomes.CN -
-        fill(2, cancercell.chromosomes.N)
-  distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
-  #println(distancefromoptimum)
-
-  j = 1
-  for dist in distancefromoptimum
-      #println("b is $b, d is $d, CN state is $CNstate")
-          #println("gain")
-      if chrfitness.fitness[j] >= 0.0
-          #println([dist, chrfitness.fitness[j]])
-          power = - sign(dist) * dist  + 2
-          b = b * (1.0 + chrfitness.fitness[j]) .^ power
-      else
-          #println([dist, chrfitness.fitness[j]])
-          power = - sign(dist) * dist  + 2
-          d = d * (1.0 + chrfitness.fitness[j]) .^ power
-      end
-  j += 1
-  end
-  #println("b is $b")
-
-  return b, d
-end
-
 
 function newmutations(cancercell::cancercellCN,
     μ::Chrmutrate,
