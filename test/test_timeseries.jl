@@ -42,9 +42,13 @@ s = CINulator.Chrfitness(Nchr,
         optimum = fill(3, Nchr),
         alpha = 0.1)
 s.alpha[1] = 0.0
-s.alpha[2] = 5.0
+s.alpha[2] = 0.5
 s.alpha[3] = 0.5
 Nmax = 10^2
+mut = 0.1/Nchr
+μ = CINulator.Chrmutrate(Nchr,
+        mutratesgain = fill(mut, Nchr),
+        mutratesloss = fill(mut, Nchr))
 
 
 global cellst1, t, Rmax = simulate(b, d, Nmax, Nchr,
@@ -59,3 +63,17 @@ for i in 1:5
         fitnessfunc = fopt)
     global sampledcells = samplecells(cellst2, 0.1)
 end
+
+Ntimepoints = 10
+cellst, (tvec, Nvec) = simulate_timeseries(b, d, 10^3, Nchr, N0 = 1,
+                        Ntimepoints = Ntimepoints, s = s, μ = μ,
+                        states = fill(2, Nchr), pct = 0.01)
+@test sum(abs.(Nvec[1:end-1] - Nvec[2:end]) .>1) == Ntimepoints
+
+
+
+Ntimepoints = 2
+cellst, (tvec, Nvec) = simulate_timeseries(b, d, 10^6, Nchr, N0 = 1,
+                        Ntimepoints = Ntimepoints, s = s, μ = μ,
+                        states = fill(2, Nchr), pct = 0.1, verbose = false)
+@test sum(abs.(Nvec[1:end-1] - Nvec[2:end]) .>1) == Ntimepoints

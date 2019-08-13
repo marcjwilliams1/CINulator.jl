@@ -310,7 +310,7 @@ end
 
 
 function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
-    μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
+    μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr),
     timefunction::Function = exptime, fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
     verbose = true)
@@ -321,6 +321,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
     t = tvec[end]
     Nvec[end] = length(cells)
     N = Nvec[end]
+    println(N)
 
     #initialize arrays and parameters
     brate = maximum(map(x -> x.b, cells))
@@ -427,4 +428,38 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println()
     end
     return cells, (tvec, Nvec), Rmax
+end
+
+function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
+    N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr),
+    timefunction::Function = exptime, fitnessfunc = optimumfitness(),
+    maxCN = 6, minCN = 1, states = [],
+    verbose = true, Ntimepoints = 5, pct = 0.1)
+
+    cells, (tvec, Nvec), Rmax = simulate(b, d, Nmax::Int64, Nchr;
+        N0 = N0, μ = μ, s = s,
+        timefunction = timefunction,
+        fitnessfunc = fitnessfunc,
+        maxCN = maxCN,
+        minCN = minCN,
+        states = states,
+        verbose = verbose)
+    sampledcells = samplecells(cells, pct)
+    cells_t = Array{cancercellCN, 1}[]
+    push!(cells_t, sampledcells)
+
+    for i in 1:Ntimepoints
+        cellst2, (tvec, Nvec), Rmax = simulate(sampledcells, tvec, Nvec, Nmax,
+            μ = μ, s = s,
+            timefunction = timefunction,
+            fitnessfunc = fitnessfunc,
+            maxCN = maxCN,
+            minCN = minCN,
+            states = states,
+            verbose = verbose)
+        sampledcells = samplecells(cellst2, 0.1)
+        push!(cells_t, sampledcells)
+    end
+
+    return cells_t, (tvec, Nvec)
 end

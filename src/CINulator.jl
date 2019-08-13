@@ -23,7 +23,8 @@ export
     optimumfitness,
     Chrfitness,
     Chrmutrate,
-    samplecells
+    samplecells,
+    simulate_timeseries
 
 
 ### source files
