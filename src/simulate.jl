@@ -208,13 +208,11 @@ exptime() = - log(rand())
 meantime() = 1
 
 function getfitness(cells, chrfitness, b, d; fitnessfunc = multiplicativefitness)
-    println(cells)
     for i in 1:length(cells)
         newb, newd = fitnessfunc(cells[i], chrfitness, b, d)
         cells[i].b = newb
         cells[i].d = newd
     end
-    println(cells)
     return cells
 end
 
@@ -235,7 +233,7 @@ function simulate(b, d, Nmax, Nchr;
     println("##################################")
     println("Birth rate = $brate, death rate = $drate")
     println("initial Rmax: $Rmax")
-    println("Mean fitness = $(meanfitness(cells))")
+    println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
     println("Initial distance from optimum: $(cells[1].chromosomes.CN .- s.optimum)")
     #println(cells[1])
     println("##################################")
@@ -315,7 +313,7 @@ function simulate(b, d, Nmax, Nchr;
     println()
     println()
     println("##################################")
-    println("Mean fitness = $(meanfitness(cells))")
+    println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
     println("Median genotype:")
     println("$(mediangenotype(cells))")
     println("Mean genotype:")
@@ -325,5 +323,6 @@ function simulate(b, d, Nmax, Nchr;
     println("Difference in genotype:")
     println("$(s.optimum .-mediangenotype(cells))")
     println("##################################")
+    println()
     return cells, (tvec, Nvec), Rmax
 end
