@@ -95,6 +95,7 @@ function optimumfitness(;increasebirth = true)
     if increasebirth == true
         f = function (cancercell, chrfitness, b, d)
             distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
+
             dist = sum(chrfitness.alpha .* abs.(distancefromoptimum))
             smax = cancercell.binitial - cancercell.dinitial
 
@@ -195,7 +196,8 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
     timefunction::Function = exptime, fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
-    verbose = true)
+    verbose = true,
+    timestop = false, tend = 0.0)
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
@@ -203,11 +205,18 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     #initialize arrays and parameters
     t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
     cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
-    brate = cells[1].b
-    drate = cells[1].d
+    brate = maximum(map(x -> x.b, cells))
+    drate = maximum(map(x -> x.d, cells))
     Rmax = brate + drate
+    if tend == 0.0
+        tend = (log(Nmax / N0) / (brate - drate)) + 0.571 / (brate - drate)
+    end
+    endsimulation = false
     if verbose
         println("##################################")
+        println("Max population size: $(Nmax)")
+        println("Max time: $(tend)")
+        println("Rmax: $Rmax")
         println("Birth rate = $brate, death rate = $drate")
         println("initial Rmax: $Rmax")
         println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
@@ -216,15 +225,13 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("##################################")
     end
 
-    while N < Nmax
+    while endsimulation == false
         #pick a random cell
         randcell = rand(1:N)
         r = rand(Uniform(0, Rmax))
 	    Nt = N
         Rmaxt = Rmax
-        #println("b: $(cells[randcell].b), d: $(cells[randcell].d)")
-        #println("CN: $(cells[randcell].chromosomes)")
-        #println([cells[randcell].b, cells[randcell].d, r])
+
         #birth event if r<birthrate, access correct birthrate from cells array
 
         #nothing if r > b+d
@@ -287,11 +294,17 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         if (N == 0)
             t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
         end
+
+        if ((timestop == true) & (t > tend))
+            endsimulation = true
+        elseif (timestop == false) & (N == Nmax)
+            endsimulation = true
+        end
     end
     if verbose
         println()
-        println()
         println("##################################")
+        println("Current time = $t, current N = $N")
         println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
         println("Median genotype:")
         println("$(mediangenotype(cells))")
@@ -304,7 +317,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("##################################")
         println()
     end
-    return cells, (tvec, Nvec), Rmax
+    return cells, (tvec, Nvec)
 end
 
 
@@ -313,7 +326,10 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
     μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr),
     timefunction::Function = exptime, fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
-    verbose = true)
+    verbose = true,
+    timestop = false, tend = 0.0)
+
+    endsimulation = false
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
@@ -321,12 +337,21 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
     t = tvec[end]
     Nvec[end] = length(cells)
     N = Nvec[end]
-    println(N)
 
     #initialize arrays and parameters
     brate = maximum(map(x -> x.b, cells))
     drate = maximum(map(x -> x.d, cells))
+    bratem = mean(map(x -> x.b, cells))
+    dratem = mean(map(x -> x.d, cells))
     Rmax = brate + drate
+    if tend == 0.0
+        tend = (log(Nmax / N) / (bratem - dratem)) + 0.571 / (bratem - dratem)
+    else
+        tend = tend
+    end
+
+    ttic = 0.0
+
     if verbose
         println("##################################")
         println("Current time = $t, current N = $N")
@@ -338,7 +363,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println("##################################")
     end
 
-    while N < Nmax
+    while endsimulation == false
         #pick a random cell
         randcell = rand(1:N)
         r = rand(Uniform(0, Rmax))
@@ -354,6 +379,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
           push!(Nvec, N)
           Δt =  1/(Rmax * Nt) * timefunction()
           t = t + Δt
+          ttic = ttic + Δt
           push!(tvec,t)
         end
 
@@ -367,6 +393,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
             push!(Nvec,N)
             Δt =  1/(Rmax * Nt) * timefunction()
             t = t + Δt
+            ttic = ttic + Δt
             push!(tvec,t)
             #every cell dies reinitialize simulation
             if (N == 0)
@@ -398,6 +425,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
             push!(Nvec, N)
             Δt =  1/(Rmaxt * Nt) * timefunction()
             t = t + Δt
+            ttic = ttic + Δt
             push!(tvec,t)
         end
 
@@ -409,9 +437,14 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         if (N == 0)
             t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
         end
+
+        if ((timestop == true) & (ttic > tend))
+            endsimulation = true
+        elseif (timestop == false) & (N == Nmax)
+            endsimulation = true
+        end
     end
     if verbose
-        println()
         println()
         println("##################################")
         println("Current time = $t, current N = $N")
@@ -431,11 +464,19 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
 end
 
 function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
-    N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr),
-    timefunction::Function = exptime, fitnessfunc = optimumfitness(),
+    N0 = 1, μ = Chrmutrate(Nchr, m = 0.01),
+    s = Chrfitness(Nchr),
+    timefunction::Function = exptime,
+    fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
-    verbose = true, Ntimepoints = 5, pct = 0.1)
-
+    verbose = true, Ntimepoints = 5, pct = 0.1,
+    timestop = false, tend = log(Nmax) / (b - d))
+    if verbose
+        println("##################################")
+        println("Timepoint 1")
+        println("##################################")
+        println()
+    end
     cells, (tvec, Nvec), Rmax = simulate(b, d, Nmax::Int64, Nchr;
         N0 = N0, μ = μ, s = s,
         timefunction = timefunction,
@@ -443,12 +484,20 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         maxCN = maxCN,
         minCN = minCN,
         states = states,
-        verbose = verbose)
+        verbose = verbose,
+        timestop = timestop,
+        tend = tend)
     sampledcells = samplecells(cells, pct)
     cells_t = Array{cancercellCN, 1}[]
     push!(cells_t, sampledcells)
 
     for i in 1:Ntimepoints
+        if verbose
+            println("##################################")
+            println("Timepoint $(i + 1)")
+            println("##################################")
+            println()
+        end
         cellst2, (tvec, Nvec), Rmax = simulate(sampledcells, tvec, Nvec, Nmax,
             μ = μ, s = s,
             timefunction = timefunction,
@@ -456,8 +505,10 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             maxCN = maxCN,
             minCN = minCN,
             states = states,
-            verbose = verbose)
-        sampledcells = samplecells(cellst2, 0.1)
+            verbose = verbose,
+            timestop = timestop,
+            tend = tend)
+        sampledcells = samplecells(cellst2, pct)
         push!(cells_t, sampledcells)
     end
 

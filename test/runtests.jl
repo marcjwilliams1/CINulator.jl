@@ -4,7 +4,7 @@ using Test
 using Random
 using Statistics
 
-tests = ["sim", "optimum"]
+tests = ["sim", "optimum", "timeseries", "endtime"]
 
 println("Running tests ...")
 

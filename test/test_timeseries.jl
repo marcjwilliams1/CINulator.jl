@@ -65,11 +65,12 @@ for i in 1:5
 end
 
 Ntimepoints = 10
-cellst, (tvec, Nvec) = simulate_timeseries(b, d, 10^3, Nchr, N0 = 1,
+maxN = 10^3
+cellst, (tvec, Nvec) = simulate_timeseries(b, d, maxN, Nchr, N0 = 1,
                         Ntimepoints = Ntimepoints, s = s, μ = μ,
                         states = fill(2, Nchr), pct = 0.01)
 @test sum(abs.(Nvec[1:end-1] - Nvec[2:end]) .>1) == Ntimepoints
-
+@test sum(Nvec[1:end-1][abs.(Nvec[1:end-1] - Nvec[2:end]) .>1] .+ 1 .== maxN) == Ntimepoints
 
 
 Ntimepoints = 2
