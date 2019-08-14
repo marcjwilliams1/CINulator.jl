@@ -100,6 +100,10 @@ function meangenotype(cells)
     mean(hcat(map(x -> x.chromosomes.CN, cells)...), dims = 2)
 end
 
+function meanploidy(cells)
+    mean(mean(hcat(map(x -> x.chromosomes.CN, cells)...), dims = 2))
+end
+
 function samplecells(cells, pct::Float64)
     pct < 1.0 || error("pct must be a value > 1.0, currently it is $(pct).")
     Nsamples = convert(Int64, round(pct * length(cells)))

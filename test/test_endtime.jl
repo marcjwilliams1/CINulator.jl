@@ -16,7 +16,7 @@ mut = 0.1/Nchr
         mutratesgain = fill(mut, Nchr),
         mutratesloss = fill(mut, Nchr))
 
-@time cellst1, (t, N), Rmax = simulate(b, d, 2^6, Nchr,
+@time simresult = simulate(b, d, 2^6, Nchr,
                 μ = μ, s = s,
                 fitnessfunc = fopt,
                 states = fill(2, Nchr),
@@ -27,20 +27,20 @@ global Nvec = Int64[]
 global tvec = Float64[]
 
 for i in 1:1000
-    cellst1, (t, N), Rmax = simulate(b, d, 2^6, Nchr,
+    @time simresult = simulate(b, d, 2^6, Nchr,
                     μ = μ, s = s,
                     fitnessfunc = fopt,
                     states = fill(2, Nchr),
                     timestop = true, verbose = false,
                     timefunction = CINulator.exptime)
-    push!(Nvec, N[end])
-    push!(tvec, t[end])
+    push!(Nvec, simresult.N[end])
+    push!(tvec, simresult.t[end])
 end
 
 
 
 Ntimepoints = 10
-cellst, (tvec, Nvec) = simulate_timeseries(b, d, 10^3,
+simresult = simulate_timeseries(b, d, 10^3,
                         Nchr, N0 = 1,
                         Ntimepoints = Ntimepoints,
                         s = s, μ = μ,
@@ -49,7 +49,7 @@ cellst, (tvec, Nvec) = simulate_timeseries(b, d, 10^3,
                         timefunction = CINulator.exptime,
                         states = fill(2, Nchr),
                         pct = 0.1)
-@test sum(abs.(Nvec[1:end-1] - Nvec[2:end]) .>1) == Ntimepoints
+@test sum(abs.(simresult[end].N[1:end-1] - simresult[end].N[2:end]) .>1) == Ntimepoints
 
 
 
@@ -68,20 +68,23 @@ b = log(2)
 d = log(2)
 s = CINulator.Chrfitness(Nchr,
         optimum = fill(3, Nchr),
-        alpha = 0.01)
+        alpha = 0.0)
 s.alpha[1] = 0.0
 s.alpha[2] = 0.0
 s.alpha[3] = 0.0
 
-mut = 0.001/Nchr
+mut = 0.4/Nchr
 μ = CINulator.Chrmutrate(Nchr,
         mutratesgain = fill(mut, Nchr),
         mutratesloss = fill(mut, Nchr))
 
-@time cellst1, (t, N), Rmax = simulate(b, d, Nmax, Nchr,
+@time simresult = simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s, N0 = N0,
                 fitnessfunc = fopt,
                 states = fill(2, Nchr),
                 timestop = true,
                 tend = 5.0,
-                timefunction = CINulator.meantime)
+                maxCN = 8,
+                record = true,
+                timefunction = CINulator.exptime)
+plot(simresult.t, simresult.fitness)

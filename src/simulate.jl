@@ -53,6 +53,14 @@ mutable struct Chrfitness
     end
 end
 
+mutable struct SimResult
+    cells::Array{cancercellCN, 1}
+    t::Array{Float64, 1}
+    N::Array{Int64, 1}
+    fitness::Array{Float64, 1}
+    ploidy::Array{Float64, 1}
+end
+
 function copychr(chromosomesnew, chromosomesold)
     chromosomesnew.CN = copy(chromosomesold.CN)
     return chromosomesnew
@@ -88,7 +96,7 @@ function initializesim(b, d, Nchr; N0 = 1, states = [])
         push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr, states)))
     end
 
-    return t, tvec, N, Nvec, cells
+    return t, tvec, N, Nvec, cells, Float64[], Float64[]
 end
 
 function optimumfitness(;increasebirth = true)
@@ -197,13 +205,13 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     timefunction::Function = exptime, fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
     verbose = true,
-    timestop = false, tend = 0.0)
+    timestop = false, tend = 0.0, record = false)
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
 
     #initialize arrays and parameters
-    t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
+    t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
     cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
     brate = maximum(map(x -> x.b, cells))
     drate = maximum(map(x -> x.d, cells))
@@ -236,9 +244,9 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
 
         #nothing if r > b+d
         if ((cells[randcell].b + cells[randcell].d) <= r )
-          push!(Nvec, N)
           Δt =  1/(Rmax * Nt) * timefunction()
           t = t + Δt
+          push!(Nvec, N)
           push!(tvec,t)
         end
 
@@ -255,7 +263,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             push!(tvec,t)
             #every cell dies reinitialize simulation
             if (N == 0)
-                t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
+                t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
             end
             continue
         end
@@ -292,7 +300,12 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
 
         #every cell dies reinitialize simulation
         if (N == 0)
-            t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
+            t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
+        end
+
+        if record
+            push!(fitness, meanfitness(cells))
+            push!(ploidy, meanploidy(cells))
         end
 
         if ((timestop == true) & (t > tend))
@@ -317,7 +330,8 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("##################################")
         println()
     end
-    return cells, (tvec, Nvec)
+
+    return SimResult(cells, tvec, Nvec, fitness, ploidy)
 end
 
 
@@ -397,7 +411,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
             push!(tvec,t)
             #every cell dies reinitialize simulation
             if (N == 0)
-                t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
+                t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
             end
             continue
         end
@@ -435,7 +449,12 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
 
         #every cell dies reinitialize simulation
         if (N == 0)
-            t, tvec, N, Nvec, cells = initializesim(b, d, Nchr, N0 = N0, states = states)
+            t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
+        end
+
+        if record
+            push!(fitness, meanfitness(cells))
+            push!(ploidy, meanploidy(cells))
         end
 
         if ((timestop == true) & (ttic > tend))
@@ -460,7 +479,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println("##################################")
         println()
     end
-    return cells, (tvec, Nvec), Rmax
+    return SimResult(cells, tvec, Nvec, fitness, ploidy)
 end
 
 function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
@@ -477,7 +496,7 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("##################################")
         println()
     end
-    cells, (tvec, Nvec), Rmax = simulate(b, d, Nmax::Int64, Nchr;
+    simresult = simulate(b, d, Nmax::Int64, Nchr;
         N0 = N0, μ = μ, s = s,
         timefunction = timefunction,
         fitnessfunc = fitnessfunc,
@@ -487,9 +506,10 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         verbose = verbose,
         timestop = timestop,
         tend = tend)
-    sampledcells = samplecells(cells, pct)
-    cells_t = Array{cancercellCN, 1}[]
-    push!(cells_t, sampledcells)
+    sampledcells = samplecells(simresult.cells, pct)
+    simresult_t = []
+    simresult.cells = sampledcells
+    push!(simresult_t, simresult)
 
     for i in 1:Ntimepoints
         if verbose
@@ -498,7 +518,8 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             println("##################################")
             println()
         end
-        cellst2, (tvec, Nvec), Rmax = simulate(sampledcells, tvec, Nvec, Nmax,
+        simresult2 = simulate(sampledcells,
+            simresult.t, simresult.N, Nmax,
             μ = μ, s = s,
             timefunction = timefunction,
             fitnessfunc = fitnessfunc,
@@ -508,9 +529,10 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             verbose = verbose,
             timestop = timestop,
             tend = tend)
-        sampledcells = samplecells(cellst2, pct)
-        push!(cells_t, sampledcells)
+        sampledcells = samplecells(simresult2.cells, pct)
+        simresult2.cells = sampledcells
+        push!(simresult_t, simresult2)
     end
 
-    return cells_t, (tvec, Nvec)
+    return simresult_t
 end
