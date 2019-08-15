@@ -16,18 +16,18 @@ mut = 0.1/Nchr
         mutratesgain = fill(mut, Nchr),
         mutratesloss = fill(mut, Nchr))
 
-@time cellst1, t, Rmax = simulate(b, d, Nmax, Nchr,
+@time simresult = simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s,
                 fitnessfunc = fopt,
                 states = fill(2, Nchr))
 
-sampledcells = samplecells(cellst1, 0.1)
-@time length(sampledcells) == 0.1 * length(cells)
+sampledcells = samplecells(simresult.cells, 0.1)
+@test length(sampledcells) == 0.1 * length(simresult.cells)
 
-sampledcells = samplecells(cells, 100)
-@time length(sampledcells) == 100
+sampledcells = samplecells(simresult.cells, 100)
+@test length(sampledcells) == 100
 
-cellst2, t, Rmax = simulate(sampledcells, t[1], t[2], Nmax,
+simresult = simulate(sampledcells, simresult.t, simresult.N, Nmax,
                         μ = μ, s = s,
                         fitnessfunc = fopt)
 
@@ -51,30 +51,35 @@ mut = 0.1/Nchr
         mutratesloss = fill(mut, Nchr))
 
 
-global cellst1, t, Rmax = simulate(b, d, Nmax, Nchr,
+global simresult = simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s,
                 fitnessfunc = fopt,
                 states = fill(2, Nchr))
-global sampledcells = samplecells(cellst1, 0.1)
+global sampledcells = samplecells(simresult.cells, 0.1)
 for i in 1:5
-    global cellst2, t2, Rmax = simulate(sampledcells, t[1],
-        t[2], Nmax,
+    global simresult = simulate(sampledcells,
+        simresult.t,
+        simresult.N, Nmax,
         μ = μ, s = s,
         fitnessfunc = fopt)
-    global sampledcells = samplecells(cellst2, 0.1)
+    global sampledcells = samplecells(simresult.cells, 0.1)
 end
 
 Ntimepoints = 10
 maxN = 10^3
-cellst, (tvec, Nvec) = simulate_timeseries(b, d, maxN, Nchr, N0 = 1,
+cellst = simulate_timeseries(b, d, maxN, Nchr, N0 = 1,
                         Ntimepoints = Ntimepoints, s = s, μ = μ,
                         states = fill(2, Nchr), pct = 0.01)
-@test sum(abs.(Nvec[1:end-1] - Nvec[2:end]) .>1) == Ntimepoints
-@test sum(Nvec[1:end-1][abs.(Nvec[1:end-1] - Nvec[2:end]) .>1] .+ 1 .== maxN) == Ntimepoints
+Nvec = cellst[end].N
+tvec = cellst[end].t
+@test sum(abs.(Nvec[1:end-1] - Nvec[2:end]) .>100) == Ntimepoints - 1
+@test sum(Nvec[1:end-1][abs.(Nvec[1:end-1] - Nvec[2:end]) .>1] .+ 1 .== maxN) == Ntimepoints - 1
+plot(tvec, Nvec)
 
 
 Ntimepoints = 2
-cellst, (tvec, Nvec) = simulate_timeseries(b, d, 10^6, Nchr, N0 = 1,
+simresult = simulate_timeseries(b, d, 10^5, Nchr, N0 = 1,
                         Ntimepoints = Ntimepoints, s = s, μ = μ,
-                        states = fill(2, Nchr), pct = 0.1, verbose = false)
-@test sum(abs.(Nvec[1:end-1] - Nvec[2:end]) .>1) == Ntimepoints
+                        states = fill(2, Nchr), pct = 0.1, verbose = true)
+Nvec = simresult[end].N
+@test sum(abs.(Nvec[1:end-1] - Nvec[2:end]) .>100) == Ntimepoints - 1

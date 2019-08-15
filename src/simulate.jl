@@ -96,7 +96,7 @@ function initializesim(b, d, Nchr; N0 = 1, states = [])
         push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr, states)))
     end
 
-    return t, tvec, N, Nvec, cells, Float64[], Float64[]
+    return t, tvec, N, Nvec, cells, [meanfitness(cells)], [meanploidy(cells)]
 end
 
 function optimumfitness(;increasebirth = true)
@@ -246,8 +246,6 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         if ((cells[randcell].b + cells[randcell].d) <= r )
           Δt =  1/(Rmax * Nt) * timefunction()
           t = t + Δt
-          push!(Nvec, N)
-          push!(tvec,t)
         end
 
         #death event if b<r<b+d
@@ -257,10 +255,8 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             #frequency of cell type decreases
             #remove deleted cell
             deleteat!(cells,randcell)
-            push!(Nvec,N)
             Δt =  1/(Rmax * Nt) * timefunction()
             t = t + Δt
-            push!(tvec,t)
             #every cell dies reinitialize simulation
             if (N == 0)
                 t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
@@ -288,15 +284,9 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
                 N = N - 1
                 deleteat!(cells,length(cells))
             end
-            push!(Nvec, N)
             Δt =  1/(Rmaxt * Nt) * timefunction()
             t = t + Δt
-            push!(tvec,t)
         end
-
-        #if randcell > length(cells)
-        #    println("$N, $(length(cells)), $randcell, $r")
-        #end
 
         #every cell dies reinitialize simulation
         if (N == 0)
@@ -307,6 +297,8 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             push!(fitness, meanfitness(cells))
             push!(ploidy, meanploidy(cells))
         end
+        push!(Nvec, N)
+        push!(tvec,t)
 
         if ((timestop == true) & (t > tend))
             endsimulation = true
@@ -341,7 +333,8 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
     timefunction::Function = exptime, fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
     verbose = true,
-    timestop = false, tend = 0.0)
+    timestop = false, tend = 0.0,
+    record = false)
 
     endsimulation = false
 
@@ -351,6 +344,8 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
     t = tvec[end]
     Nvec[end] = length(cells)
     N = Nvec[end]
+    fitness = []
+    ploidy = []
 
     #initialize arrays and parameters
     brate = maximum(map(x -> x.b, cells))
@@ -383,18 +378,13 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         r = rand(Uniform(0, Rmax))
 	    Nt = N
         Rmaxt = Rmax
-        #println("b: $(cells[randcell].b), d: $(cells[randcell].d)")
-        #println("CN: $(cells[randcell].chromosomes)")
-        #println([cells[randcell].b, cells[randcell].d, r])
         #birth event if r<birthrate, access correct birthrate from cells array
 
         #nothing if r > b+d
         if ((cells[randcell].b + cells[randcell].d) <= r )
-          push!(Nvec, N)
           Δt =  1/(Rmax * Nt) * timefunction()
           t = t + Δt
           ttic = ttic + Δt
-          push!(tvec,t)
         end
 
         #death event if b<r<b+d
@@ -404,11 +394,9 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
             #frequency of cell type decreases
             #remove deleted cell
             deleteat!(cells,randcell)
-            push!(Nvec,N)
             Δt =  1/(Rmax * Nt) * timefunction()
             t = t + Δt
             ttic = ttic + Δt
-            push!(tvec,t)
             #every cell dies reinitialize simulation
             if (N == 0)
                 t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
@@ -436,16 +424,10 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
                 N = N - 1
                 deleteat!(cells,length(cells))
             end
-            push!(Nvec, N)
             Δt =  1/(Rmaxt * Nt) * timefunction()
             t = t + Δt
             ttic = ttic + Δt
-            push!(tvec,t)
         end
-
-        #if randcell > length(cells)
-        #    println("$N, $(length(cells)), $randcell, $r")
-        #end
 
         #every cell dies reinitialize simulation
         if (N == 0)
@@ -456,6 +438,8 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
             push!(fitness, meanfitness(cells))
             push!(ploidy, meanploidy(cells))
         end
+        push!(Nvec, N)
+        push!(tvec,t)
 
         if ((timestop == true) & (ttic > tend))
             endsimulation = true
@@ -489,7 +473,8 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
     verbose = true, Ntimepoints = 5, pct = 0.1,
-    timestop = false, tend = log(Nmax) / (b - d))
+    timestop = false, tend = log(Nmax) / (b - d),
+    record = false)
     if verbose
         println("##################################")
         println("Timepoint 1")
@@ -505,13 +490,14 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         states = states,
         verbose = verbose,
         timestop = timestop,
-        tend = tend)
+        tend = tend,
+        record = record)
     sampledcells = samplecells(simresult.cells, pct)
     simresult_t = []
     simresult.cells = sampledcells
     push!(simresult_t, simresult)
 
-    for i in 1:Ntimepoints
+    for i in 1:Ntimepoints-1
         if verbose
             println("##################################")
             println("Timepoint $(i + 1)")
@@ -519,7 +505,7 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             println()
         end
         simresult2 = simulate(sampledcells,
-            simresult.t, simresult.N, Nmax,
+            simresult.t, simresult.N, Nmax;
             μ = μ, s = s,
             timefunction = timefunction,
             fitnessfunc = fitnessfunc,
@@ -528,7 +514,8 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             states = states,
             verbose = verbose,
             timestop = timestop,
-            tend = tend)
+            tend = tend,
+            record = record)
         sampledcells = samplecells(simresult2.cells, pct)
         simresult2.cells = sampledcells
         push!(simresult_t, simresult2)

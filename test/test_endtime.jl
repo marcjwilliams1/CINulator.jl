@@ -27,7 +27,7 @@ global Nvec = Int64[]
 global tvec = Float64[]
 
 for i in 1:1000
-    @time simresult = simulate(b, d, 2^6, Nchr,
+    simresult = simulate(b, d, 2^6, Nchr,
                     μ = μ, s = s,
                     fitnessfunc = fopt,
                     states = fill(2, Nchr),
@@ -64,16 +64,16 @@ fopt = CINulator.optimumfitness()
 Nchr = 5
 N0 = 10^3
 Nmax = 10^5
-b = log(2)
+b = log(2) + 0.01
 d = log(2)
 s = CINulator.Chrfitness(Nchr,
         optimum = fill(3, Nchr),
-        alpha = 0.0)
-s.alpha[1] = 0.0
-s.alpha[2] = 0.0
-s.alpha[3] = 0.0
+        alpha = 0.1)
+# s.alpha[1] = 0.0
+# s.alpha[2] = 0.0
+# s.alpha[3] = 0.0
 
-mut = 0.4/Nchr
+mut = 0.1/Nchr
 μ = CINulator.Chrmutrate(Nchr,
         mutratesgain = fill(mut, Nchr),
         mutratesloss = fill(mut, Nchr))
@@ -83,8 +83,10 @@ mut = 0.4/Nchr
                 fitnessfunc = fopt,
                 states = fill(2, Nchr),
                 timestop = true,
-                tend = 5.0,
+                tend = 10.0,
                 maxCN = 8,
-                record = true,
+                record = false,
                 timefunction = CINulator.exptime)
+plot(simresult.t, simresult.N)
+plot(simresult.t, simresult.ploidy)
 plot(simresult.t, simresult.fitness)
