@@ -62,9 +62,9 @@ simresult = simulate_timeseries(b, d, 10^3,
 Random.seed!(1)
 fopt = CINulator.optimumfitness()
 Nchr = 5
-N0 = 10^3
+N0 = 10^2
 Nmax = 10^5
-b = log(2) + 0.01
+b = log(2) + 0.001
 d = log(2)
 s = CINulator.Chrfitness(Nchr,
         optimum = fill(3, Nchr),
@@ -83,10 +83,13 @@ mut = 0.1/Nchr
                 fitnessfunc = fopt,
                 states = fill(2, Nchr),
                 timestop = true,
-                tend = 10.0,
+                tend = 25.0,
                 maxCN = 8,
                 record = false,
                 timefunction = CINulator.exptime)
 plot(simresult.t, simresult.N)
 plot(simresult.t, simresult.ploidy)
 plot(simresult.t, simresult.fitness)
+
+fopt = CINulator.optimumfitness()
+fopt(simresult.cells[1], s, b, d)
