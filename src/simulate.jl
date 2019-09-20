@@ -399,6 +399,9 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
             ttic = ttic + Δt
             #every cell dies reinitialize simulation
             if (N == 0)
+                if verbose
+                    println("Population size is 0, restarting")
+                end
                 t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
             end
             continue
@@ -492,15 +495,15 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         timestop = timestop,
         tend = tend,
         record = record)
-    sampledcells = samplecells(simresult.cells, pct)
     simresult_t = []
-    simresult.cells = sampledcells
     push!(simresult_t, simresult)
+    sampledcells = samplecells(simresult.cells, pct)
 
     for i in 1:Ntimepoints-1
         if verbose
             println("##################################")
             println("Timepoint $(i + 1)")
+            println("Number of cells sampled: $(length(sampledcells))")
             println("##################################")
             println()
         end
@@ -516,9 +519,8 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             timestop = timestop,
             tend = tend,
             record = record)
-        sampledcells = samplecells(simresult2.cells, pct)
-        simresult2.cells = sampledcells
         push!(simresult_t, simresult2)
+        sampledcells = samplecells(simresult2.cells, pct)
     end
 
     return simresult_t
