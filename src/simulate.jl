@@ -319,6 +319,8 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("$(s.optimum)")
         println("Difference in genotype:")
         println("$(s.optimum .-mediangenotype(cells))")
+        println("Average distance from optimum")
+        println("$(sum(abs(s.optimum .-meangenotype(cells))))")
         println("##################################")
         println()
     end
@@ -337,6 +339,8 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
     record = false)
 
     endsimulation = false
+
+    sampledcells = deepcopy(cells)
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
@@ -367,7 +371,16 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println("Birth rate = $brate, death rate = $drate")
         println("initial Rmax: $Rmax")
         println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
-        println("Initial distance from optimum: $(cells[1].chromosomes.CN .- s.optimum)")
+        println("Median genotype:")
+        println("$(mediangenotype(cells))")
+        println("Mean genotype:")
+        println("$(meangenotype(cells))")
+        println("Optimum genotype:")
+        println("$(s.optimum)")
+        println("Difference in genotype:")
+        println("$(s.optimum .-mediangenotype(cells))")
+        println("Average distance from optimum")
+        println("$(sum(abs(s.optimum .-meangenotype(cells))))")
         #println(cells[1])
         println("##################################")
     end
@@ -402,7 +415,8 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
                 if verbose
                     println("Population size is 0, restarting")
                 end
-                t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
+                cells = deepcopy(sampledcells)
+                N = length(cells)
             end
             continue
         end
@@ -434,7 +448,11 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
 
         #every cell dies reinitialize simulation
         if (N == 0)
-            t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
+            if verbose
+                println("Population size is 0, restarting")
+            end
+            cells = deepcopy(sampledcells)
+            N = length(cells)
         end
 
         if record
@@ -463,6 +481,8 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println("$(s.optimum)")
         println("Difference in genotype:")
         println("$(s.optimum .-mediangenotype(cells))")
+        println("Average distance from optimum")
+        println("$(sum(abs(s.optimum .-meangenotype(cells))))")
         println("##################################")
         println()
     end
