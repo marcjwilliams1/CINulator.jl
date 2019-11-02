@@ -19,6 +19,8 @@ mutable struct cancercellCN
     fitness::Array{Float64, 1}
     timedrivers::Array{Float64, 1}
     chromosomes::Chromosomes
+    labelvec::Array{Int64, 1}
+    id::String
 end
 
 mutable struct Chrmutrate
@@ -75,7 +77,9 @@ function copycell(cancercellold::cancercellCN)
   copy(cancercellold.fitness),
   copy(cancercellold.timedrivers),
   copychr(Chromosomes(cancercellold.chromosomes.N),
-  cancercellold.chromosomes))
+  cancercellold.chromosomes),
+  copy(cancercellold.labelvec),
+  cancercellold.id)
 end
 
 function initializesim(b, d, Nchr; N0 = 1, states = [])
@@ -93,7 +97,7 @@ function initializesim(b, d, Nchr; N0 = 1, states = [])
     #fitness type of 1 is the host population, lowest fitness
     cells = cancercellCN[]
     for i in 1:N0
-        push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr, states)))
+        push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr, states), Int64[], "temp"))
     end
 
     return t, tvec, N, Nvec, cells, [meanfitness(cells)], [meanploidy(cells)]
@@ -146,7 +150,9 @@ function newmutations(cancercell::cancercellCN,
     Rmax, t,
     fitnessfunc;
     minCN = 1,
-    maxCN = 6)
+    maxCN = 6,
+    labelcells = false,
+    labelid = 1)
 
     #function to add new mutations to cells based on μ
     mutations_gain = map(x -> rand(Poisson(x)), μ.gain) .> 0
@@ -185,7 +191,12 @@ function newmutations(cancercell::cancercellCN,
       Rmax = cancercell.b + cancercell.d
     end
 
-    return cancercell, Rmax, killcell
+    if labelcells == true
+        cancercell.labelvec = push!(cancercell.labelvec, labelid)
+        labelid += 1
+    end
+
+    return cancercell, Rmax, killcell, labelid
 end
 
 exptime() = - log(rand())
@@ -205,13 +216,15 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     timefunction::Function = exptime, fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states = [],
     verbose = true,
-    timestop = false, tend = 0.0, record = false)
+    timestop = false, tend = 0.0, record = false,
+    labelcells = false)
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
 
     #initialize arrays and parameters
     t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
+    labelid = 1
     cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
     brate = maximum(map(x -> x.b, cells))
     drate = maximum(map(x -> x.d, cells))
@@ -272,14 +285,22 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             #copy cell and mutations for cell that reproduces
             push!(cells,copycell(cells[randcell]))
             #add new mutations to both new cells
-            cells[randcell], Rmax, killcell = newmutations(cells[randcell], μ, s, Rmax,
-            t, fitnessfunc, maxCN = maxCN, minCN = minCN)
+            cells[randcell], Rmax, killcell, labelid =
+                                            newmutations(cells[randcell], μ,
+                                            s, Rmax,t, fitnessfunc,
+                                            maxCN = maxCN, minCN = minCN,
+                                            labelcells = labelcells,
+                                            labelid = labelid)
             if killcell == true
                 N = N - 1
                 deleteat!(cells,randcell)
             end
-            cells[end], Rmax, killcell = newmutations(cells[end], μ, s, Rmax, t,
-            fitnessfunc, maxCN = maxCN, minCN = minCN)
+            cells[end], Rmax, killcell, labelid = newmutations(cells[end], μ,
+                                                s, Rmax, t, fitnessfunc,
+                                                maxCN = maxCN,
+                                                minCN = minCN,
+                                                labelcells = labelcells,
+                                                labelid = labelid)
             if killcell == true
                 N = N - 1
                 deleteat!(cells,length(cells))
@@ -320,9 +341,13 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("Difference in genotype:")
         println("$(s.optimum .-mediangenotype(cells))")
         println("Average distance from optimum")
-        println("$(sum(abs(s.optimum .-meangenotype(cells))))")
+        println("$(sum(abs.(s.optimum .-meangenotype(cells))))")
         println("##################################")
         println()
+    end
+
+    for i in 1:length(cells)
+        cells[i].id = randstring(10)
     end
 
     return SimResult(cells, tvec, Nvec, fitness, ploidy)
@@ -380,7 +405,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println("Difference in genotype:")
         println("$(s.optimum .-mediangenotype(cells))")
         println("Average distance from optimum")
-        println("$(sum(abs(s.optimum .-meangenotype(cells))))")
+        println("$(sum(abs.(s.optimum .-meangenotype(cells))))")
         #println(cells[1])
         println("##################################")
     end
@@ -429,14 +454,22 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
             #copy cell and mutations for cell that reproduces
             push!(cells,copycell(cells[randcell]))
             #add new mutations to both new cells
-            cells[randcell], Rmax, killcell = newmutations(cells[randcell], μ, s, Rmax,
-            t, fitnessfunc, maxCN = maxCN, minCN = minCN)
+            cells[randcell], Rmax, killcell, labelid =
+                                                newmutations(cells[randcell], μ,
+                                                s, Rmax, t, fitnessfunc,
+                                                maxCN = maxCN,
+                                                minCN = minCN,
+                                                labelcells = labelcells,
+                                                labelid = labelid)
             if killcell == true
                 N = N - 1
                 deleteat!(cells,randcell)
             end
             cells[end], Rmax, killcell = newmutations(cells[end], μ, s, Rmax, t,
-            fitnessfunc, maxCN = maxCN, minCN = minCN)
+                                            fitnessfunc, maxCN = maxCN,
+                                            minCN = minCN,
+                                            labelcells = labelcells,
+                                            labelid = labelid)
             if killcell == true
                 N = N - 1
                 deleteat!(cells,length(cells))
@@ -482,10 +515,15 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println("Difference in genotype:")
         println("$(s.optimum .-mediangenotype(cells))")
         println("Average distance from optimum")
-        println("$(sum(abs(s.optimum .-meangenotype(cells))))")
+        println("$(sum(abs.(s.optimum .-meangenotype(cells))))")
         println("##################################")
         println()
     end
+
+    for i in 1:length(cells)
+        cells[i].id = randstring(10)
+    end
+
     return SimResult(cells, tvec, Nvec, fitness, ploidy)
 end
 

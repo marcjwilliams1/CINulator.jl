@@ -20,6 +20,7 @@ export
     sitefrequency,
     celldataframe,
     mergecelldataframe,
+    mergemutationdataframe,
     optimumfitness,
     Chrfitness,
     Chrmutrate,
