@@ -21,6 +21,7 @@ export
     celldataframe,
     mergecelldataframe,
     mergemutationdataframe,
+    mergecelldataframe_locus,
     optimumfitness,
     Chrfitness,
     Chrmutrate,
