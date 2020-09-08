@@ -1,9 +1,18 @@
-mutable struct Chromosomes
-    CN::Array{Int64, 1}
+mutable struct Chromosome
+    A::Int64
+    B::Int64
+    tot::Int64
+    function Chromosome(stateA, stateB)
+        return new(stateA, stateB, stateA + stateB)
+    end
+end
+
+mutable struct Genome
+    CN::Array{Chromosome, 1}
     N::Int64
-    function Chromosomes(N, states = [])
+    function Genome(N, states = [])
         if isempty(states)
-            CN = fill(2, N)
+            CN = fill(Chromosome(1, 1), N)
         else
             CN = states
         end
@@ -18,25 +27,19 @@ mutable struct cancercellCN
     dinitial::Float64
     fitness::Array{Float64, 1}
     timedrivers::Array{Float64, 1}
-    chromosomes::Chromosomes
+    genome::Genome
     labelvec::Array{Int64, 1}
     id::String
 end
 
 mutable struct Chrmutrate
-    loss::Array{Float64, 1}
-    gain::Array{Float64, 1}
-    function Chrmutrate(N; m = 0.1, mutratesgain = [],
-        mutratesloss = [])
-        if isempty(mutratesloss)
-            mutratesloss = rand(Gamma(m), Int64(N))
+    mutrates::Array{Float64, 1}
+    function Chrmutrate(N; m = 0.1, mutrates = [])
+        if isempty(mutrates)
+            mutrates = rand(Gamma(m), Int64(N))
         end
-        if isempty(mutratesgain)
-            mutratesgain = rand(Gamma(m), Int64(N))
-        end
-        length(mutratesgain) == N || error("mutratesgain is length $(length(mutratesgain)), but number of chromosomes, N = $N. These should be equal")
-        length(mutratesloss) == N || error("mutratesloss is length $(length(mutratesloss)), but number of chromosomes, N = $N. These should be equal")
-        return new(mutratesloss, mutratesgain)
+        length(mutrates) == N || error("mutrates is length $(length(mutrates)), but number of chromosomes, N = $N. These should be equal")
+        return new(mutrates)
     end
 end
 
@@ -63,9 +66,9 @@ mutable struct SimResult
     ploidy::Array{Float64, 1}
 end
 
-function copychr(chromosomesnew, chromosomesold)
-    chromosomesnew.CN = copy(chromosomesold.CN)
-    return chromosomesnew
+function copygenome(genomenew, genomeold)
+    genomenew.CN = copy(genomeold.CN)
+    return genomenew
 end
 
 function copycell(cancercellold::cancercellCN)
@@ -76,8 +79,8 @@ function copycell(cancercellold::cancercellCN)
   copy(cancercellold.dinitial),
   copy(cancercellold.fitness),
   copy(cancercellold.timedrivers),
-  copychr(Chromosomes(cancercellold.chromosomes.N),
-  cancercellold.chromosomes),
+  copygenome(Genome(cancercellold.genome.N),
+  cancercellold.genome),
   copy(cancercellold.labelvec),
   cancercellold.id)
 end
@@ -97,7 +100,7 @@ function initializesim(b, d, Nchr; N0 = 1, states = [])
     #fitness type of 1 is the host population, lowest fitness
     cells = cancercellCN[]
     for i in 1:N0
-        push!(cells, cancercellCN(b, d, b, d, Float64[], [], Chromosomes(Nchr, states), Int64[], "temp"))
+        push!(cells, cancercellCN(b, d, b, d, Float64[], [], Genome(Nchr, states), Int64[], "temp"))
     end
 
     return t, tvec, N, Nvec, cells, [meanfitness(cells)], [meanploidy(cells)]
@@ -106,7 +109,7 @@ end
 function optimumfitness(;increasebirth = true)
     if increasebirth == true
         f = function (cancercell, chrfitness, b, d)
-            distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
+            distancefromoptimum = map(x -> x.tot, cancercell.genome.CN) .- chrfitness.optimum
 
             dist = sum(chrfitness.alpha .* abs.(distancefromoptimum))
             smax = cancercell.binitial - cancercell.dinitial
@@ -124,7 +127,7 @@ function optimumfitness(;increasebirth = true)
         return f
     else
         f = function (cancercell, chrfitness, b, d)
-            distancefromoptimum = cancercell.chromosomes.CN .- chrfitness.optimum
+            distancefromoptimum = map(x -> x.tot, cancercell.genome.CN) .- chrfitness.optimum
 
             dist = sum(chrfitness.alpha .* abs.(distancefromoptimum))
             smax = cancercell.binitial - cancercell.dinitial
@@ -142,6 +145,107 @@ function optimumfitness(;increasebirth = true)
         end
         return f
     end
+end
+
+function missegregation(cancercell1, cancercell2, chr)
+
+    #choose which cell and which allele are gained and lost
+    cell_gain = rand(1:2)
+    allele = sample(0:1, 2, replace = false)
+
+    if cancercell1.genome.CN[chr].A == 0
+        allele = [0, 1] 
+    elseif cancercell1.genome.CN[chr].B == 0
+        allele = [1, 0]
+    end
+
+    if cell_gain == 1
+        cancercell1.genome.CN[chr] = Chromosome(cancercell1.genome.CN[chr].A + allele[1], cancercell1.genome.CN[chr].B + allele[2])
+        cancercell2.genome.CN[chr] = Chromosome(cancercell2.genome.CN[chr].A - allele[1], cancercell2.genome.CN[chr].B - allele[2])
+    else
+        cancercell2.genome.CN[chr] = Chromosome(cancercell2.genome.CN[chr].A + allele[1], cancercell2.genome.CN[chr].B + allele[2])
+        cancercell1.genome.CN[chr] = Chromosome(cancercell1.genome.CN[chr].A - allele[1], cancercell1.genome.CN[chr].B - allele[2])
+    end
+
+    return cancercell1, cancercell2
+end
+
+function newmutations2(cancercell1, 
+    cancercell2,
+    μ::Chrmutrate,
+    s::Chrfitness,
+    Rmax, t,
+    fitnessfunc;
+    minCN = 1,
+    maxCN = 6,
+    labelcells = false,
+    labelid = 1
+    )
+
+    mutations = map(x -> rand(Poisson(x)), μ.mutrates) .> 0
+
+    #record time if mutations occur
+    if sum(mutations) > 0
+        push!(cancercell1.timedrivers, t)
+        push!(cancercell2.timedrivers, t)
+    end
+
+    killcell1 = false
+    killcell2 = false
+
+    #change copy number state of chromosomes
+    for chr in 1:cancercell1.genome.N
+
+        if mutations[chr] == 0
+            continue
+        end
+
+        cancercell1, cancercell2 = missegregation(cancercell1, cancercell2, chr)
+
+        #CN cannot go below minCN, cell dies
+        if cancercell1.genome.CN[chr].tot < minCN
+            #cancercell.chromosomes.CN[i] = minCN
+            killcell1 = true
+        end
+        if cancercell2.genome.CN[chr].tot < minCN
+            #cancercell.chromosomes.CN[i] = minCN
+            killcell2 = true
+        end
+        #CN cannot exceed maxCN
+        #if cancercell.genome.CN[i] > maxCN
+        #    cancercell.genome.CN[i] = maxCN
+        #end
+    end
+
+
+    b = cancercell1.binitial
+    d = cancercell1.dinitial
+    b, d = fitnessfunc(cancercell1, s, b, d)
+    cancercell1.b = b
+    cancercell1.d = d
+
+    b = cancercell1.binitial
+    d = cancercell1.dinitial
+    b, d = fitnessfunc(cancercell2, s, b, d)
+    cancercell2.b = b
+    cancercell2.d = d
+
+    if cancercell1.b + cancercell1.d > Rmax
+      Rmax = cancercell1.b + cancercell1.d
+    end
+
+    if cancercell2.b + cancercell2.d > Rmax
+        Rmax = cancercell2.b + cancercell2.d
+      end
+
+    if labelcells == true
+        cancercell1.labelvec = push!(cancercell1.labelvec, labelid)
+        labelid += 1
+        cancercell2.labelvec = push!(cancercell2.labelvec, labelid)
+        labelid += 1
+    end
+
+    return cancercell1, cancercell2, Rmax, killcell1, killcell2, labelid
 end
 
 function newmutations(cancercell::cancercellCN,
@@ -169,16 +273,16 @@ function newmutations(cancercell::cancercellCN,
     killcell = false
 
     #change copy number state of chromosomes
-    for i in 1:cancercell.chromosomes.N
-        cancercell.chromosomes.CN[i] += mutations_gain[i] - mutations_loss[i]
+    for i in 1:cancercell.genome.N
+        cancercell.genome.CN[i] += mutations_gain[i] - mutations_loss[i]
         #CN cannot go below minCN, cell dies
-        if cancercell.chromosomes.CN[i] < minCN
+        if cancercell.genome.CN[i] < minCN
             #cancercell.chromosomes.CN[i] = minCN
             killcell = true
         end
         #CN cannot exceed maxCN
-        if cancercell.chromosomes.CN[i] > maxCN
-            cancercell.chromosomes.CN[i] = maxCN
+        if cancercell.genome.CN[i] > maxCN
+            cancercell.genome.CN[i] = maxCN
         end
     end
 
@@ -241,7 +345,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("Birth rate = $brate, death rate = $drate")
         println("initial Rmax: $Rmax")
         println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
-        println("Initial distance from optimum: $(cells[1].chromosomes.CN .- s.optimum)")
+        println("Initial distance from optimum: $(gettotalcn(cells[1]) .- s.optimum)")
         #println(cells[1])
         println("##################################")
     end
@@ -285,23 +389,17 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             #copy cell and mutations for cell that reproduces
             push!(cells,copycell(cells[randcell]))
             #add new mutations to both new cells
-            cells[randcell], Rmax, killcell, labelid =
-                                            newmutations(cells[randcell], μ,
+            cells[randcell], cells[end], Rmax, killcell1, killcell2, labelid =
+                                            newmutations2(cells[randcell], cells[end], μ,
                                             s, Rmax,t, fitnessfunc,
                                             maxCN = maxCN, minCN = minCN,
                                             labelcells = labelcells,
                                             labelid = labelid)
-            if killcell == true
+            if killcell1 == true
                 N = N - 1
                 deleteat!(cells,randcell)
             end
-            cells[end], Rmax, killcell, labelid = newmutations(cells[end], μ,
-                                                s, Rmax, t, fitnessfunc,
-                                                maxCN = maxCN,
-                                                minCN = minCN,
-                                                labelcells = labelcells,
-                                                labelid = labelid)
-            if killcell == true
+            if killcell2 == true
                 N = N - 1
                 deleteat!(cells,length(cells))
             end
