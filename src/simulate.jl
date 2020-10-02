@@ -14,7 +14,7 @@ mutable struct Genome
         if isempty(states)
             CN = fill(Chromosome(1, 1), N)
         else
-            CN = states
+            CN = map(x -> Chromosome(x...), states)
         end
         return new(CN, N)
     end
@@ -170,7 +170,7 @@ function missegregation(cancercell1, cancercell2, chr)
     return cancercell1, cancercell2
 end
 
-function newmutations2(cancercell1, 
+function newmutations(cancercell1, 
     cancercell2,
     μ::Chrmutrate,
     s::Chrfitness,
@@ -248,61 +248,6 @@ function newmutations2(cancercell1,
     return cancercell1, cancercell2, Rmax, killcell1, killcell2, labelid
 end
 
-function newmutations(cancercell::cancercellCN,
-    μ::Chrmutrate,
-    s::Chrfitness,
-    Rmax, t,
-    fitnessfunc;
-    minCN = 1,
-    maxCN = 6,
-    labelcells = false,
-    labelid = 1)
-
-    #function to add new mutations to cells based on μ
-    mutations_gain = map(x -> rand(Poisson(x)), μ.gain) .> 0
-    mutations_loss = map(x -> rand(Poisson(x)), μ.loss) .> 0
-
-    #record time if mutations occur
-    if (sum(mutations_gain) + sum(mutations_loss)) > 0
-        push!(cancercell.timedrivers, t)
-    end
-
-    b = cancercell.binitial
-    d = cancercell.dinitial
-
-    killcell = false
-
-    #change copy number state of chromosomes
-    for i in 1:cancercell.genome.N
-        cancercell.genome.CN[i] += mutations_gain[i] - mutations_loss[i]
-        #CN cannot go below minCN, cell dies
-        if cancercell.genome.CN[i] < minCN
-            #cancercell.chromosomes.CN[i] = minCN
-            killcell = true
-        end
-        #CN cannot exceed maxCN
-        if cancercell.genome.CN[i] > maxCN
-            cancercell.genome.CN[i] = maxCN
-        end
-    end
-
-    b, d = fitnessfunc(cancercell, s, b, d)
-
-    cancercell.b = b
-    cancercell.d = d
-
-    if cancercell.b + cancercell.d > Rmax
-      Rmax = cancercell.b + cancercell.d
-    end
-
-    if labelcells == true
-        cancercell.labelvec = push!(cancercell.labelvec, labelid)
-        labelid += 1
-    end
-
-    return cancercell, Rmax, killcell, labelid
-end
-
 exptime() = - log(rand())
 meantime() = 1
 
@@ -321,7 +266,8 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     maxCN = 6, minCN = 1, states = [],
     verbose = true,
     timestop = false, tend = 0.0, record = false,
-    labelcells = false)
+    labelcells = false,
+    nsamplecells = nothing)
 
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures that
     # b and d have correct units
@@ -390,7 +336,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             push!(cells,copycell(cells[randcell]))
             #add new mutations to both new cells
             cells[randcell], cells[end], Rmax, killcell1, killcell2, labelid =
-                                            newmutations2(cells[randcell], cells[end], μ,
+                                            newmutations(cells[randcell], cells[end], μ,
                                             s, Rmax,t, fitnessfunc,
                                             maxCN = maxCN, minCN = minCN,
                                             labelcells = labelcells,
@@ -448,18 +394,29 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         cells[i].id = randstring(10)
     end
 
+    if nsamplecells != nothing
+        nsamplecells = min(nsamplecells, Nmax)
+        cells = samplecells(cells, nsamplecells)
+    end
+
     return SimResult(cells, tvec, Nvec, fitness, ploidy)
 end
 
 
 
 function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
-    μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr),
-    timefunction::Function = exptime, fitnessfunc = optimumfitness(),
-    maxCN = 6, minCN = 1, states = [],
-    verbose = true,
-    timestop = false, tend = 0.0,
-    record = false)
+                    μ = Chrmutrate(Nchr, m = 0.01), 
+                    s = Chrfitness(Nchr),
+                    timefunction::Function = exptime, 
+                    fitnessfunc = optimumfitness(),
+                    maxCN = 6, 
+                    minCN = 1, 
+                    states = [],
+                    verbose = true,
+                    timestop = false, 
+                    tend = 0.0,
+                    record = false,
+                    nsamplecells = nothing)
 
     endsimulation = false
 
@@ -633,7 +590,8 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     maxCN = 6, minCN = 1, states = [],
     verbose = true, Ntimepoints = 5, pct = 0.1,
     timestop = false, tend = log(Nmax) / (b - d),
-    record = false)
+    record = false,
+    nsamplecells = nothing)
     if verbose
         println("##################################")
         println("Timepoint 1")
@@ -650,7 +608,8 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         verbose = verbose,
         timestop = timestop,
         tend = tend,
-        record = record)
+        record = record,
+        nsamplecells = nothing)
     simresult_t = []
     push!(simresult_t, simresult)
     sampledcells = samplecells(simresult.cells, pct)
@@ -674,7 +633,8 @@ function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
             verbose = verbose,
             timestop = timestop,
             tend = tend,
-            record = record)
+            record = record,
+            nsamplecells = nothing)
         push!(simresult_t, simresult2)
         sampledcells = samplecells(simresult2.cells, pct)
     end

@@ -20,7 +20,7 @@ cancercell1 = CINulator.copycell(cell)
 cancercell2 = CINulator.copycell(cell)
 
 cancercell1, cancercell2, Rmax, killcell1, killcell2, labelid =
-        CINulator.newmutations2(cancercell1, 
+        CINulator.newmutations(cancercell1, 
                                 cancercell2, 
                                 μ,
                                 s, 
@@ -42,3 +42,14 @@ cancercell1, cancercell2, Rmax, killcell1, killcell2, labelid =
                 s = s,
                 fitnessfunc = CINulator.optimumfitness(),
                 labelcells = true);
+
+@time simresult = CINulator.simulate(b, d, 
+                10^3, 
+                Nchr,
+                μ = μ, 
+                s = s,
+                fitnessfunc = CINulator.optimumfitness(),
+                states = [(1,2), (2,3)],
+                labelcells = true);
+
+

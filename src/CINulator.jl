@@ -26,8 +26,7 @@ export
     Chrfitness,
     Chrmutrate,
     samplecells,
-    simulate_timeseries,
-    hello
+    simulate_timeseries
 
 
 ### source files
