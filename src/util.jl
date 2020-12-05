@@ -4,9 +4,9 @@ function copynumberfrequency(cells::Array{cancercellCN, 1})
     # copy number can be 0 even if this is not the case
 
     N = length(cells)
-    Nchr = cells[1].chromosomes.N
+    Nchr = cells[1].genome.N
 
-    CNstates = hcat(map(x -> x.chromosomes.CN, cells)...)'
+    CNstates = hcat(map(x -> gettotalcn(x), cells)...)'
     maxCN = maximum(CNstates)
     frequencymatrix = zeros(maxCN + 1, Nchr)
 

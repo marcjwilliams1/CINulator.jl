@@ -58,6 +58,16 @@ mutable struct Chrfitness
     end
 end
 
+mutable struct Chrfitnessadditive
+    s::Array{Float64, 1}
+    function Chrfitnessadditive(N; s = [])
+        if isempty(s)
+            s = fill(1.0, N)
+        end
+        return new(s)
+    end
+end
+
 mutable struct SimResult
     cells::Array{cancercellCN, 1}
     t::Array{Float64, 1}
@@ -104,6 +114,14 @@ function initializesim(b, d, Nchr; N0 = 1, states = [])
     end
 
     return t, tvec, N, Nvec, cells, [meanfitness(cells)], [meanploidy(cells)]
+end
+
+function additivefitness()
+    
+    f = function(cancercell, chrfitness, b, d)
+    end
+
+    return f
 end
 
 function optimumfitness(;increasebirth = true)

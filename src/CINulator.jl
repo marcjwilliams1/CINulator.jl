@@ -24,9 +24,11 @@ export
     mergecelldataframe_locus,
     optimumfitness,
     Chrfitness,
+    Chrfitnessadditive,
     Chrmutrate,
     samplecells,
-    simulate_timeseries
+    simulate_timeseries,
+    gettotalcn
 
 
 ### source files
