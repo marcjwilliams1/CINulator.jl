@@ -28,7 +28,10 @@ export
     Chrmutrate,
     samplecells,
     simulate_timeseries,
-    gettotalcn
+    gettotalcn,
+    Genome,
+    Chromosome,
+    Arm
 
 
 ### source files

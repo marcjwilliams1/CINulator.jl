@@ -1,10 +1,15 @@
-mutable struct Chromosome
+mutable struct Arm
     A::Int64
     B::Int64
     tot::Int64
-    function Chromosome(stateA, stateB)
+    function Arm(stateA, stateB)
         return new(stateA, stateB, stateA + stateB)
     end
+end
+
+mutable struct Chromosome
+    p::Arm
+    q::Arm
 end
 
 mutable struct Genome
@@ -12,9 +17,9 @@ mutable struct Genome
     N::Int64
     function Genome(N, states = [])
         if isempty(states)
-            CN = fill(Chromosome(1, 1), N)
+            CN = fill(Chromosome(Arm(1, 1), Arm(1, 1)), N)
         else
-            CN = map(x -> Chromosome(x...), states)
+            CN = map(x -> Chromosome(Arm(states[1]...), Arms(states[2]...)), states)
         end
         return new(CN, N)
     end
@@ -34,12 +39,16 @@ end
 
 mutable struct Chrmutrate
     mutrates::Array{Float64, 1}
-    function Chrmutrate(N; m = 0.1, mutrates = [])
+    psplit::Array{Float64, 1}
+    function Chrmutrate(N; m = 0.1, mutrates = [], psplit = [])
         if isempty(mutrates)
             mutrates = rand(Gamma(m), Int64(N))
         end
+        if isempty(psplit)
+            psplit = fill(0.01, N)
+        end
         length(mutrates) == N || error("mutrates is length $(length(mutrates)), but number of chromosomes, N = $N. These should be equal")
-        return new(mutrates)
+        return new(mutrates, psplit)
     end
 end
 
@@ -47,14 +56,10 @@ createalpha(alpha::Float64, N) = fill(alpha, N)
 createalpha(alpha::Array{Float64, 1}, N) = alpha
 
 mutable struct Chrfitness
-    optimum::Array{Int64, 1}
+    optimum::Genome
     alpha::Array{Float64, 1}
-    function Chrfitness(N; optimum = [], alpha = 0.0)
-        if isempty(optimum)
-            optimum = rand(1:6, N)
-        end
-        length(optimum) == N || error("optimum is length $(length(optimum)), but number of chromosomes, N = $N. These should be equal")
-        return new(optimum, createalpha(alpha, N))
+    function Chrfitness(optimumgenome::Genome; alpha = 0.0)
+        return new(optimumgenome, createalpha(alpha, 2*length(optimumgenome.CN)))
     end
 end
 
@@ -77,7 +82,10 @@ mutable struct SimResult
 end
 
 function copygenome(genomenew, genomeold)
-    genomenew.CN = copy(genomeold.CN)
+    for i in 1:length(genomenew.CN)
+        genomenew.CN[i] = Chromosome(Arm(copy(genomeold.CN[i].p.A), copy(genomeold.CN[i].p.B)), Arm(copy(genomeold.CN[i].q.A), copy(genomeold.CN[i].q.B)))
+        #genomenew.CN[i].q = Arm(copy(genomeold.CN[i].q.A), copy(genomeold.CN[i].q.B))
+    end
     return genomenew
 end
 
@@ -124,30 +132,33 @@ function additivefitness()
     return f
 end
 
+function genomdistance(genome1, genome2, alpha)
+
+    dist = Float64[]
+    for i in 1:length(genome1.CN)
+        push!(dist, genome1.CN[i].p.tot - genome2.CN[i].p.tot)
+        push!(dist, genome1.CN[i].q.tot - genome2.CN[i].q.tot)
+    end
+
+    return sqrt(sum(alpha .* dist.^2))
+end
+
 function optimumfitness(;increasebirth = true)
     if increasebirth == true
         f = function (cancercell, chrfitness, b, d)
-            distancefromoptimum = map(x -> x.tot, cancercell.genome.CN) .- chrfitness.optimum
-
-            dist = sum(chrfitness.alpha .* abs.(distancefromoptimum))
+            dist = genomdistance(cancercell.genome, chrfitness.optimum, chrfitness.alpha)
             smax = cancercell.binitial - cancercell.dinitial
 
             s = smax / (dist + 1)
 
             b = s + cancercell.dinitial
             d = b - s
-            #d = cancercell.dinitial * (1 + propd * s)
-
-            # b = (propb * b)  / (sum(abs.(distancefromoptimum)) * chrfitness.alpha + 1)
-            # d = (propd * d)  * (sum(abs.(distancefromoptimum)) * chrfitness.alpha + 1)
             return b, d
         end
         return f
     else
         f = function (cancercell, chrfitness, b, d)
-            distancefromoptimum = map(x -> x.tot, cancercell.genome.CN) .- chrfitness.optimum
-
-            dist = sum(chrfitness.alpha .* abs.(distancefromoptimum))
+            dist = genomdistance(cancercell.genome, chrfitness.optimum, chrfitness.alpha)
             smax = cancercell.binitial - cancercell.dinitial
 
             s = smax / (dist + 1)
@@ -165,24 +176,52 @@ function optimumfitness(;increasebirth = true)
     end
 end
 
-function missegregation(cancercell1, cancercell2, chr)
+function missegregation(cancercell1, cancercell2, chr, split_arm)
 
     #choose which cell and which allele are gained and lost
     cell_gain = rand(1:2)
     allele = sample(0:1, 2, replace = false)
 
-    if cancercell1.genome.CN[chr].A == 0
+    if (cancercell1.genome.CN[chr].p.A == 0) | (cancercell1.genome.CN[chr].q.A == 0)
         allele = [0, 1] 
-    elseif cancercell1.genome.CN[chr].B == 0
+    elseif (cancercell1.genome.CN[chr].p.B == 0) | (cancercell1.genome.CN[chr].q.B == 0)
         allele = [1, 0]
     end
 
-    if cell_gain == 1
-        cancercell1.genome.CN[chr] = Chromosome(cancercell1.genome.CN[chr].A + allele[1], cancercell1.genome.CN[chr].B + allele[2])
-        cancercell2.genome.CN[chr] = Chromosome(cancercell2.genome.CN[chr].A - allele[1], cancercell2.genome.CN[chr].B - allele[2])
-    else
-        cancercell2.genome.CN[chr] = Chromosome(cancercell2.genome.CN[chr].A + allele[1], cancercell2.genome.CN[chr].B + allele[2])
-        cancercell1.genome.CN[chr] = Chromosome(cancercell1.genome.CN[chr].A - allele[1], cancercell1.genome.CN[chr].B - allele[2])
+    if split_arm == 1
+        pq = rand(["p", "q"]) #randomly choose which chromosome arm is gained or lost
+        if pq == "p"
+            if cell_gain == 1
+                cancercell1.genome.CN[chr].p = Arm(cancercell1.genome.CN[chr].p.A + allele[1], cancercell1.genome.CN[chr].p.B + allele[2])
+                cancercell2.genome.CN[chr].p = Arm(cancercell2.genome.CN[chr].p.A - allele[1], cancercell2.genome.CN[chr].p.B - allele[2])
+            else
+                cancercell2.genome.CN[chr].p = Arm(cancercell2.genome.CN[chr].p.A + allele[1], cancercell2.genome.CN[chr].p.B + allele[2])
+                cancercell1.genome.CN[chr].p = Arm(cancercell1.genome.CN[chr].p.A - allele[1], cancercell1.genome.CN[chr].p.B - allele[2])
+            end
+        else 
+            if cell_gain == 1
+                cancercell1.genome.CN[chr].q = Arm(cancercell1.genome.CN[chr].q.A + allele[1], cancercell1.genome.CN[chr].q.B + allele[2])
+                cancercell2.genome.CN[chr].q = Arm(cancercell2.genome.CN[chr].q.A - allele[1], cancercell2.genome.CN[chr].q.B - allele[2])
+            else
+                cancercell2.genome.CN[chr].q = Arm(cancercell2.genome.CN[chr].q.A + allele[1], cancercell2.genome.CN[chr].q.B + allele[2])
+                cancercell1.genome.CN[chr].q = Arm(cancercell1.genome.CN[chr].q.A - allele[1], cancercell1.genome.CN[chr].q.B - allele[2])
+            end
+        end
+
+    else 
+
+        if cell_gain == 1
+            cancercell1.genome.CN[chr].p = Arm(cancercell1.genome.CN[chr].p.A + allele[1], cancercell1.genome.CN[chr].p.B + allele[2])
+            cancercell1.genome.CN[chr].q = Arm(cancercell1.genome.CN[chr].q.A + allele[1], cancercell1.genome.CN[chr].q.B + allele[2])
+            cancercell2.genome.CN[chr].p = Arm(cancercell2.genome.CN[chr].p.A - allele[1], cancercell2.genome.CN[chr].p.B - allele[2])
+            cancercell2.genome.CN[chr].q = Arm(cancercell2.genome.CN[chr].q.A - allele[1], cancercell2.genome.CN[chr].q.B - allele[2])
+        else
+            cancercell2.genome.CN[chr].p = Arm(cancercell2.genome.CN[chr].p.A + allele[1], cancercell2.genome.CN[chr].p.B + allele[2])
+            cancercell2.genome.CN[chr].q = Arm(cancercell2.genome.CN[chr].q.A + allele[1], cancercell2.genome.CN[chr].q.B + allele[2])
+            cancercell1.genome.CN[chr].p = Arm(cancercell1.genome.CN[chr].p.A - allele[1], cancercell1.genome.CN[chr].p.B - allele[2])
+            cancercell1.genome.CN[chr].q = Arm(cancercell1.genome.CN[chr].q.A - allele[1], cancercell1.genome.CN[chr].q.B - allele[2])
+        end
+        
     end
 
     return cancercell1, cancercell2
@@ -201,6 +240,7 @@ function newmutations(cancercell1,
     )
 
     mutations = map(x -> rand(Poisson(x)), μ.mutrates) .> 0
+    split_arms = map(x -> rand(Poisson(x)), μ.psplit) .> 0
 
     #record time if mutations occur
     if sum(mutations) > 0
@@ -218,14 +258,14 @@ function newmutations(cancercell1,
             continue
         end
 
-        cancercell1, cancercell2 = missegregation(cancercell1, cancercell2, chr)
+        cancercell1, cancercell2 = missegregation(cancercell1, cancercell2, chr, split_arms[chr])
 
         #CN cannot go below minCN, cell dies
-        if cancercell1.genome.CN[chr].tot < minCN
+        if cancercell1.genome.CN[chr].p.tot < minCN | cancercell1.genome.CN[chr].q.tot < minCN
             #cancercell.chromosomes.CN[i] = minCN
             killcell1 = true
         end
-        if cancercell2.genome.CN[chr].tot < minCN
+        if cancercell2.genome.CN[chr].p.tot < minCN | cancercell2.genome.CN[chr].q.tot < minCN
             #cancercell.chromosomes.CN[i] = minCN
             killcell2 = true
         end
