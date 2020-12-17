@@ -5,35 +5,35 @@
 Random.seed!(1)
 
 fopt = CINulator.optimumfitness()
-chrfitness = CINulator.Chrfitness(2)
-chrfitness.optimum .= 2 #fix high optimum so it's not reached
+myoptgenome = Genome(2)
+myoptgenome.CN[1] = Chromosome(Arm(2,2), Arm(2,2))
+myoptgenome.CN[2] = Chromosome(Arm(1,0), Arm(1,0))
+chrfitness = CINulator.Chrfitness(myoptgenome)
 x = CINulator.initializesim(log(2), 0.0, 2)
 cell = x[5][1]
-cell.genome.CN[1] = CINulator.Chromosome(2,2)
-cell.genome.CN[2] = CINulator.Chromosome(1,0)
-chrfitness.optimum[1] = 4
-chrfitness.optimum[2] = 1
-chrfitness.alpha = fill(0.5, 2)
+cell.genome.CN[1] = CINulator.Chromosome(Arm(2,2), Arm(2,2))
+cell.genome.CN[2] = CINulator.Chromosome(Arm(1,0), Arm(1,0))
+chrfitness.alpha = fill(0.5, 4)
 bdrates = fopt(cell, chrfitness, log(2), 0.1)
 @test isapprox(bdrates[1], log(2), rtol = 0.01)
 
 ###################################################################################
 # Test that cells with karyootypes far away from the optimum have lower birth rates
 ###################################################################################
-cell.genome.CN[1] = CINulator.Chromosome(1,1)
-cell.genome.CN[2] = CINulator.Chromosome(1,1)
+cell.genome.CN[1] = CINulator.Chromosome(Arm(1,1), Arm(1,1))
+cell.genome.CN[2] = CINulator.Chromosome(Arm(1,1), Arm(1,1))
 bdrates1 = fopt(cell, chrfitness, log(2), 0.1)
 
-cell.genome.CN[1] = CINulator.Chromosome(2,1)
-cell.genome.CN[2] = CINulator.Chromosome(1,1)
+cell.genome.CN[1] = CINulator.Chromosome(Arm(2,1), Arm(2,1))
+cell.genome.CN[2] = CINulator.Chromosome(Arm(1,1), Arm(1,1))
 bdrates2 = fopt(cell, chrfitness, log(2), 0.1)
 
-cell.genome.CN[1] = CINulator.Chromosome(2,1)
-cell.genome.CN[2] = CINulator.Chromosome(1,0)
+cell.genome.CN[1] = CINulator.Chromosome(Arm(2,1), Arm(2,1))
+cell.genome.CN[2] = CINulator.Chromosome(Arm(1,0), Arm(1,0))
 bdrates3 = fopt(cell, chrfitness, log(2), 0.1)
 
-cell.genome.CN[1] = CINulator.Chromosome(3,1)
-cell.genome.CN[2] = CINulator.Chromosome(1,0)
+cell.genome.CN[1] = CINulator.Chromosome(Arm(3,1), Arm(3,1))
+cell.genome.CN[2] = CINulator.Chromosome(Arm(1,0), Arm(1,0))
 bdrates4 = fopt(cell, chrfitness, log(2), 0.1)
 @test bdrates4[1] > bdrates3[1] > bdrates2[1] > bdrates1[1]
 
@@ -44,8 +44,14 @@ Nchr = 4
 Nmax = 10^5
 b = log(2)
 d = 0.0
-μ = CINulator.Chrmutrate(Nchr, mutrates = [0.2, 0.2, 0.2, 0.2])
-s = CINulator.Chrfitness(Nchr, optimum = [2, 4, 1, 3], alpha = 0.5)
+
+myoptgenome = Genome(4)
+myoptgenome.CN[2] = Chromosome(Arm(2,2), Arm(2,2))
+myoptgenome.CN[3] = Chromosome(Arm(1,0), Arm(1,0))
+myoptgenome.CN[4] = Chromosome(Arm(2,1), Arm(2,1))
+s = CINulator.Chrfitness(myoptgenome, alpha = 0.75)
+μ = CINulator.Chrmutrate(Nchr, mutrates = fill(0.2, Nchr), psplit = fill(0.0, Nchr))
+fopt = CINulator.optimumfitness()
 
 t, tvec, N, Nvec, cells = CINulator.initializesim(b, d, Nchr, N0 = 1)
 
@@ -53,7 +59,7 @@ simresult = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s,
                 fitnessfunc = fopt)
 
-dist = map(x -> sum(abs.(gettotalcn(x) .- s.optimum)), simresult.cells)
+dist = map(x -> sum(abs.(gettotalcn(x) .- gettotalcn(s.optimum))), simresult.cells)
 fitness = map(x -> x.b - x.d, simresult.cells)
 
 # fitness and distance from optimum should be negatively correlated
@@ -61,18 +67,21 @@ fitness = map(x -> x.b - x.d, simresult.cells)
 @test cor(dist, fitness) < cor(shuffle(fitness), shuffle(dist))
 f = copynumberfrequency(simresult.cells)
 #plot(cells)
-@test findmax(f[:, 2])[2] - 1 == 4
+@test findmax(f[:, 3])[2] - 1 == 4
+@test f[:,1] == f[:,2]
+
+# check all cells have positive copy number for all chromosomes
+df = mergecelldataframe_locus(simresult.cells)
+@test sum(df[!, :state] .< 1) == 0
 
 
 #with alpha = 0.0 (no selection)
-s = CINulator.Chrfitness(Nchr,
-        optimum = [2, 4, 1, 3],
-        alpha = 0.0)
+s = CINulator.Chrfitness(myoptgenome, alpha = 0.0)
 
 simresult = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s,
                 fitnessfunc = fopt)
-dist = map(x -> sum(abs.(gettotalcn(x) .- s.optimum)), simresult.cells)
+dist = map(x -> sum(abs.(gettotalcn(x) .- gettotalcn(s.optimum))), simresult.cells)
 fitness = map(x -> x.b - x.d, simresult.cells)
 
 
@@ -81,32 +90,18 @@ fitness = map(x -> x.b - x.d, simresult.cells)
 #f = copynumberfrequency(simresult.cells)
 #plot(cells)
 
-
-#### different alpha for different chromosomes
-Random.seed!(123)
-Nchr = 5
-Nmax = 10^5
-b = log(2)
-d = 0.1
-s = CINulator.Chrfitness(Nchr,
-        optimum = fill(3, Nchr),
-        alpha = 0.1)
-s.alpha[1] = 0.0
-s.alpha[2] = 5.0
-s.alpha[3] = 0.5
-
-mut = 0.1/Nchr
-μ = CINulator.Chrmutrate(Nchr, mutrates = fill(mut, Nchr))
-
-@time simresult = CINulator.simulate(b, d, Nmax, Nchr,
+###################################################################################
+#Include split chromosomes
+###################################################################################
+μ = CINulator.Chrmutrate(Nchr, mutrates = fill(0.2, Nchr), psplit = fill(0.1, Nchr))
+s = CINulator.Chrfitness(myoptgenome, alpha = 0.5)
+simresult = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s,
-                fitnessfunc = fopt,
-                states = fill((1,1), Nchr))
-#plot(simresult.cells)
+                fitnessfunc = fopt)
 f = copynumberfrequency(simresult.cells)
-@test findmax(f[:,2])[1] > findmax(f[:,3])[1]
-
-
+@test f[:,1] != f[:,2]
+@test findmax(f[:, 3])[2] - 1 == 4
+@test findmax(f[:, 4])[2] - 1 == 4
 
 
 #######################################################################################################

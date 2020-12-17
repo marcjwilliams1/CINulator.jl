@@ -8,9 +8,9 @@ function copynumberfrequency(cells::Array{cancercellCN, 1})
 
     CNstates = hcat(map(x -> gettotalcn(x), cells)...)'
     maxCN = maximum(CNstates)
-    frequencymatrix = zeros(maxCN + 1, Nchr)
+    frequencymatrix = zeros(maxCN + 1, 2*Nchr)
 
-    for i in 1:Nchr
+    for i in 1:2*Nchr
         frequencymatrix[:, i] = counts(CNstates[:, i], 0:maxCN)
     end
 
@@ -47,15 +47,15 @@ end
 
 function celldataframe_locus(cell)
     chr = 1:cell.genome.N
+    chrarm = ["1p", "1q", "2p", "2q", "3p", "3q", "4p", "4q","5p", "5q", "6p", "6q", "7p", "7q", "8p", "8q","9p", "9q", "10p", "10q", "11p", "11q", "12p", "12q","13p", "13q", "14p", "14q", "15p", "15q", "16p", "16q", "17p", "17q", "18p", "18q", "19p", "19q", "20p", "20q", "21p", "21q", "22p", "22q"]
     CNstates = gettotalcn(cell)
-    ASstates = getAScn(cell)
-    DF = DataFrame(locus = map(x -> string(x), chr),
+    DF = DataFrame(locus = chrarm[1:2*cell.genome.N],
                 cell_id = cell.id,
                 state = CNstates,
                 A = getAallele(cell),
                 B = getBallele(cell),
-                state_AS_phased = ASstates,
                 fitness = cell.b - cell.d)
+    DF[!, :state_AS_phased] = map((A,B) -> "$(A)|$(B)", DF[!,:A], DF[!,:B])
     return DF
 end
 
@@ -99,19 +99,33 @@ function copynumbernoise(df; celldist = Beta(1))
 end
 
 function gettotalcn(cell)
-    map(x -> x.tot, cell.genome.CN)
+    p = map(x -> x.p.tot, cell.genome.CN)
+    q = map(x -> x.q.tot, cell.genome.CN)
+    return [p q]'[:]
+end
+
+function gettotalcn(genome::Genome)
+    p = map(x -> x.p.tot, genome.CN)
+    q = map(x -> x.q.tot, genome.CN)
+    return [p q]'[:]
 end
 
 function getAScn(cell)
-    map(x -> "$(x.A)|$(x.B)", cell.genome.CN)
+    p = map(x -> "$(x.p.A)|$(x.p.B)", cell.genome.CN)
+    q = map(x -> "$(x.q.A)|$(x.q.B)", cell.genome.CN)
+    return [p q]'[:]
 end
 
 function getAallele(cell)
-    map(x -> x.A, cell.genome.CN)
+    p = map(x -> x.p.A, cell.genome.CN)
+    q = map(x -> x.q.A, cell.genome.CN)
+    return [p q]'[:]
 end
 
 function getBallele(cell)
-    map(x -> x.B, cell.genome.CN)
+    p = map(x -> x.p.B, cell.genome.CN)
+    q = map(x -> x.q.B, cell.genome.CN)
+    return [p q]'[:]
 end
 
 function meanfitness(cells)

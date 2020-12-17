@@ -132,7 +132,7 @@ function additivefitness()
     return f
 end
 
-function genomdistance(genome1, genome2, alpha)
+function genomedistance(genome1, genome2, alpha)
 
     dist = Float64[]
     for i in 1:length(genome1.CN)
@@ -146,7 +146,7 @@ end
 function optimumfitness(;increasebirth = true)
     if increasebirth == true
         f = function (cancercell, chrfitness, b, d)
-            dist = genomdistance(cancercell.genome, chrfitness.optimum, chrfitness.alpha)
+            dist = genomedistance(cancercell.genome, chrfitness.optimum, chrfitness.alpha)
             smax = cancercell.binitial - cancercell.dinitial
 
             s = smax / (dist + 1)
@@ -261,11 +261,11 @@ function newmutations(cancercell1,
         cancercell1, cancercell2 = missegregation(cancercell1, cancercell2, chr, split_arms[chr])
 
         #CN cannot go below minCN, cell dies
-        if cancercell1.genome.CN[chr].p.tot < minCN | cancercell1.genome.CN[chr].q.tot < minCN
+        if cancercell1.genome.CN[chr].p.tot < minCN || cancercell1.genome.CN[chr].q.tot < minCN
             #cancercell.chromosomes.CN[i] = minCN
             killcell1 = true
         end
-        if cancercell2.genome.CN[chr].p.tot < minCN | cancercell2.genome.CN[chr].q.tot < minCN
+        if cancercell2.genome.CN[chr].p.tot < minCN || cancercell2.genome.CN[chr].q.tot < minCN
             #cancercell.chromosomes.CN[i] = minCN
             killcell2 = true
         end
@@ -349,7 +349,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("Birth rate = $brate, death rate = $drate")
         println("initial Rmax: $Rmax")
         println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
-        println("Initial distance from optimum: $(gettotalcn(cells[1]) .- s.optimum)")
+        println("Initial distance from optimum: $(gettotalcn(cells[1]) .- gettotalcn(s.optimum))")
         #println(cells[1])
         println("##################################")
     end
@@ -439,11 +439,11 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("Mean genotype:")
         println("$(meangenotype(cells))")
         println("Optimum genotype:")
-        println("$(s.optimum)")
+        println("$(gettotalcn(s.optimum))")
         println("Difference in genotype:")
-        println("$(s.optimum .-mediangenotype(cells))")
+        println("$(gettotalcn(s.optimum) .-mediangenotype(cells))")
         println("Average distance from optimum")
-        println("$(sum(abs.(s.optimum .-meangenotype(cells))))")
+        println("$(sum(abs.(gettotalcn(s.optimum) .-meangenotype(cells))))")
         println("##################################")
         println()
     end
@@ -514,11 +514,11 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println("Mean genotype:")
         println("$(meangenotype(cells))")
         println("Optimum genotype:")
-        println("$(s.optimum)")
+        println("$(gettotalcn(s.optimum))")
         println("Difference in genotype:")
-        println("$(s.optimum .-mediangenotype(cells))")
+        println("$(gettotalcn(s.optimum) .-mediangenotype(cells))")
         println("Average distance from optimum")
-        println("$(sum(abs.(s.optimum .-meangenotype(cells))))")
+        println("$(sum(abs.(gettotalcn(s.optimum) .-meangenotype(cells))))")
         #println(cells[1])
         println("##################################")
     end
@@ -624,11 +624,11 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         println("Mean genotype:")
         println("$(map(x -> round(x, digits = 3), meangenotype(cells)))")
         println("Optimum genotype:")
-        println("$(s.optimum)")
+        println("$(gettotalcn(s.optimum))")
         println("Difference in genotype:")
-        println("$(s.optimum .-mediangenotype(cells))")
+        println("$(gettotalcn(s.optimum) .-mediangenotype(cells))")
         println("Average distance from optimum")
-        println("$(map(x -> round(x, digits = 3), sum(abs.(s.optimum .-meangenotype(cells)))))")
+        println("$(map(x -> round(x, digits = 3), sum(abs.(gettotalcn(s.optimum).-meangenotype(cells)))))")
         println("##################################")
         println()
     end
