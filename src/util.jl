@@ -4,13 +4,13 @@ function copynumberfrequency(cells::Array{cancercellCN, 1})
     # copy number can be 0 even if this is not the case
 
     N = length(cells)
-    Nchr = cells[1].chromosomes.N
+    Nchr = cells[1].genome.N
 
-    CNstates = hcat(map(x -> x.chromosomes.CN, cells)...)'
+    CNstates = hcat(map(x -> gettotalcn(x), cells)...)'
     maxCN = maximum(CNstates)
-    frequencymatrix = zeros(maxCN + 1, Nchr)
+    frequencymatrix = zeros(maxCN + 1, 2*Nchr)
 
-    for i in 1:Nchr
+    for i in 1:2*Nchr
         frequencymatrix[:, i] = counts(CNstates[:, i], 0:maxCN)
     end
 
@@ -19,9 +19,9 @@ end
 
 function sitefrequency(cells::Array{cancercellCN, 1})
     N = length(cells)
-    Nchr = cells[1].chromosomes.N
+    Nchr = cells[1].genome.N
 
-    CNstates = hcat(map(x -> x.chromosomes.CN, cells)...)'
+    CNstates = hcat(map(x -> gettotalcn(x), cells)...)'
     maxCN = maximum(CNstates)
     frequency = Int64[]
     for i in 1:Nchr
@@ -35,9 +35,9 @@ end
 
 function sitefrequency(cells::Array{cancercellCN, 1}, chr)
     N = length(cells)
-    Nchr = cells[1].chromosomes.N
+    Nchr = cells[1].genome.N
 
-    CNstates = hcat(map(x -> x.chromosomes.CN, cells)...)'
+    CNstates = hcat(map(x -> gettotalcn(x), cells)...)'
     CNstateschr = CNstates[:, chr]
     maxCN = maximum(CNstates)
     frequency = counts(filter(x -> x != 2, CNstates), 0:maxCN)
@@ -46,17 +46,21 @@ function sitefrequency(cells::Array{cancercellCN, 1}, chr)
 end
 
 function celldataframe_locus(cell)
-    chr = 1:cell.chromosomes.N
-    CNstates = cell.chromosomes.CN
-    DF = DataFrame(locus = map(x -> string(x), chr),
+    chr = 1:cell.genome.N
+    chrarm = ["1p", "1q", "2p", "2q", "3p", "3q", "4p", "4q","5p", "5q", "6p", "6q", "7p", "7q", "8p", "8q","9p", "9q", "10p", "10q", "11p", "11q", "12p", "12q","13p", "13q", "14p", "14q", "15p", "15q", "16p", "16q", "17p", "17q", "18p", "18q", "19p", "19q", "20p", "20q", "21p", "21q", "22p", "22q"]
+    CNstates = gettotalcn(cell)
+    DF = DataFrame(locus = chrarm[1:2*cell.genome.N],
                 cell_id = cell.id,
                 state = CNstates,
+                A = getAallele(cell),
+                B = getBallele(cell),
                 fitness = cell.b - cell.d)
+    DF[!, :state_AS_phased] = map((A,B) -> "$(A)|$(B)", DF[!,:A], DF[!,:B])
     return DF
 end
 
 
-function celldataframe(cell;
+function celldataframe_withpos(cell;
     chrlengths = [249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431, 135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520, 48129895, 51304566, 155270560, 59373566])
     chr = 1:cell.chromosomes.N
     startseg = fill(1, cell.chromosomes.N)
@@ -71,7 +75,7 @@ function celldataframe(cell;
     return DF
 end
 
-function mergecelldataframe(cells,
+function mergecelldataframe_pos(cells,
     chrlengths = [249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431, 135534747, 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520, 48129895, 51304566, 155270560, 59373566])
     return vcat(map(x -> celldataframe(x, chrlengths = chrlengths), cells)...)
 end
@@ -94,6 +98,36 @@ function copynumbernoise(df; celldist = Beta(1))
     return df
 end
 
+function gettotalcn(cell)
+    p = map(x -> x.p.tot, cell.genome.CN)
+    q = map(x -> x.q.tot, cell.genome.CN)
+    return [p q]'[:]
+end
+
+function gettotalcn(genome::Genome)
+    p = map(x -> x.p.tot, genome.CN)
+    q = map(x -> x.q.tot, genome.CN)
+    return [p q]'[:]
+end
+
+function getAScn(cell)
+    p = map(x -> "$(x.p.A)|$(x.p.B)", cell.genome.CN)
+    q = map(x -> "$(x.q.A)|$(x.q.B)", cell.genome.CN)
+    return [p q]'[:]
+end
+
+function getAallele(cell)
+    p = map(x -> x.p.A, cell.genome.CN)
+    q = map(x -> x.q.A, cell.genome.CN)
+    return [p q]'[:]
+end
+
+function getBallele(cell)
+    p = map(x -> x.p.B, cell.genome.CN)
+    q = map(x -> x.q.B, cell.genome.CN)
+    return [p q]'[:]
+end
+
 function meanfitness(cells)
     mean(map(x -> x.b, cells) .- map(x -> x.d, cells))
 end
@@ -107,15 +141,15 @@ function maxfitness(cells)
 end
 
 function mediangenotype(cells)
-    convert(Array{Int64, 1}, map(x -> round(x), median(hcat(map(x -> x.chromosomes.CN, cells)...), dims = 2))[:])
+    convert(Array{Int64, 1}, map(x -> round(x), median(hcat(map(x -> gettotalcn(x), cells)...), dims = 2))[:])
 end
 
 function meangenotype(cells)
-    mean(hcat(map(x -> x.chromosomes.CN, cells)...), dims = 2)
+    mean(hcat(map(x -> gettotalcn(x), cells)...), dims = 2)
 end
 
 function meanploidy(cells)
-    mean(mean(hcat(map(x -> x.chromosomes.CN, cells)...), dims = 2))
+    mean(mean(hcat(map(x -> gettotalcn(x), cells)...), dims = 2))
 end
 
 function samplecells(cells, pct::Float64)
