@@ -57,7 +57,7 @@ t, tvec, N, Nvec, cells = CINulator.initializesim(b, d, Nchr, N0 = 1)
 
 simresult = CINulator.simulate(b, d, Nmax, Nchr,
                 μ = μ, s = s,
-                fitnessfunc = fopt)
+                fitnessfunc = fopt, states = Genome(Nchr))
 
 dist = map(x -> sum(abs.(gettotalcn(x) .- gettotalcn(s.optimum))), simresult.cells)
 fitness = map(x -> x.b - x.d, simresult.cells)

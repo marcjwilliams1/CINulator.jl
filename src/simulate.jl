@@ -19,7 +19,7 @@ mutable struct Genome
         if isempty(states)
             CN = fill(Chromosome(Arm(1, 1), Arm(1, 1)), N)
         else
-            CN = map(x -> Chromosome(Arm(states[1]...), Arms(states[2]...)), states)
+            CN = map(x -> Chromosome(Arm(x[1]...), Arm(x[2]...)), states)
         end
         return new(CN, N)
     end
@@ -103,7 +103,7 @@ function copycell(cancercellold::cancercellCN)
   cancercellold.id)
 end
 
-function initializesim(b, d, Nchr; N0 = 1, states = [])
+function initializesim(b, d, Nchr; N0 = 1, states = Genome(Nchr))
 
     #initialize time to zero
     t = 0.0
@@ -118,7 +118,7 @@ function initializesim(b, d, Nchr; N0 = 1, states = [])
     #fitness type of 1 is the host population, lowest fitness
     cells = cancercellCN[]
     for i in 1:N0
-        push!(cells, cancercellCN(b, d, b, d, Float64[], [], Genome(Nchr, states), Int64[], "temp"))
+        push!(cells, cancercellCN(b, d, b, d, Float64[], [], states, Int64[], "temp"))
     end
 
     return t, tvec, N, Nvec, cells, [meanfitness(cells)], [meanploidy(cells)]
@@ -321,7 +321,7 @@ end
 function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
     timefunction::Function = exptime, fitnessfunc = optimumfitness(),
-    maxCN = 6, minCN = 1, states = [],
+    maxCN = 6, minCN = 1, states::Genome = Genome(Nchr),
     verbose = true,
     timestop = false, tend = 0.0, record = false,
     labelcells = false,
