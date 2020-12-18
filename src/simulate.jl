@@ -81,7 +81,8 @@ mutable struct SimResult
     ploidy::Array{Float64, 1}
 end
 
-function copygenome(genomenew, genomeold)
+function copygenome(genomeold)
+    genomenew = Genome(genomeold.N)
     for i in 1:length(genomenew.CN)
         genomenew.CN[i] = Chromosome(Arm(copy(genomeold.CN[i].p.A), copy(genomeold.CN[i].p.B)), Arm(copy(genomeold.CN[i].q.A), copy(genomeold.CN[i].q.B)))
         #genomenew.CN[i].q = Arm(copy(genomeold.CN[i].q.A), copy(genomeold.CN[i].q.B))
@@ -97,8 +98,7 @@ function copycell(cancercellold::cancercellCN)
   copy(cancercellold.dinitial),
   copy(cancercellold.fitness),
   copy(cancercellold.timedrivers),
-  copygenome(Genome(cancercellold.genome.N),
-  cancercellold.genome),
+  copygenome(cancercellold.genome),
   copy(cancercellold.labelvec),
   cancercellold.id)
 end
@@ -118,7 +118,7 @@ function initializesim(b, d, Nchr; N0 = 1, states = Genome(Nchr))
     #fitness type of 1 is the host population, lowest fitness
     cells = cancercellCN[]
     for i in 1:N0
-        push!(cells, cancercellCN(b, d, b, d, Float64[], [], states, Int64[], "temp"))
+        push!(cells, cancercellCN(b, d, b, d, Float64[], [], copygenome(states), Int64[], "temp"))
     end
 
     return t, tvec, N, Nvec, cells, [meanfitness(cells)], [meanploidy(cells)]
@@ -240,6 +240,7 @@ function newmutations(cancercell1,
     )
 
     mutations = map(x -> rand(Poisson(x)), μ.mutrates) .> 0
+    #println(mutations)
     split_arms = map(x -> rand(Poisson(x)), μ.psplit) .> 0
 
     #record time if mutations occur
@@ -319,7 +320,7 @@ function getfitness(cells, chrfitness, b, d; fitnessfunc = multiplicativefitness
 end
 
 function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
-    N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Nchr, m = 0.01),
+    N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Genome(Nchr)),
     timefunction::Function = exptime, fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states::Genome = Genome(Nchr),
     verbose = true,
@@ -428,6 +429,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         elseif (timestop == false) & (N == Nmax)
             endsimulation = true
         end
+        #println(CINulator.copynumberfrequencyA(cells))
     end
     if verbose
         println()
@@ -464,7 +466,7 @@ end
 
 function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
                     μ = Chrmutrate(Nchr, m = 0.01), 
-                    s = Chrfitness(Nchr),
+                    s = Chrfitness(Genome(Nchr)),
                     timefunction::Function = exptime, 
                     fitnessfunc = optimumfitness(),
                     maxCN = 6, 

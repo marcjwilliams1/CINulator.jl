@@ -122,3 +122,37 @@ chrfitness.optimum[2] = 1
 chrfitness.alpha = fill(0.5, 2)
 bdrates = fopt(cell, chrfitness, log(2), 0.1)
 @test isapprox(bdrates[1], log(2), rtol = 0.01)
+
+#######################################################################################################
+## 22 chromosomes
+######################################################################################################
+
+Random.seed!(3)
+Nchr = 22
+Nmax = 10^3
+b = log(2)
+d = 0.0
+mu = 0.1
+
+myoptgenome = Genome(Nchr)
+s = CINulator.Chrfitness(myoptgenome, alpha = 0.0001)
+μ = CINulator.Chrmutrate(Nchr, mutrates = fill(mu, Nchr), psplit = fill(0.1, Nchr))
+fopt = CINulator.optimumfitness()
+Random.seed!(3)
+simresult = CINulator.simulate(b, d, Nmax, Nchr,
+                μ = μ, s = s,
+                fitnessfunc = fopt, states = myoptgenome)
+df = mergecelldataframe_locus(simresult.cells)
+@linq by(df,:cell_id, Aloh = sum(:A .== 0), Bloh = sum(:B .== 0)) |> orderby(:Bloh)
+df2 = deepcopy(df)
+using DataFrames
+using DataFramesMeta
+dfsummary = @linq by(df,:cell_id, Aloh = sum(:A .== 0), Bloh = sum(:B .== 0)) |> orderby(:Bloh)
+
+@where(df, :cell_id .== dfsummary[!,:cell_id][end])
+#|> where(:Aloh .> 0 | :Bloh .> 0)
+
+
+
+
+

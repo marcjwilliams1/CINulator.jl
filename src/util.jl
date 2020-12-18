@@ -17,6 +17,42 @@ function copynumberfrequency(cells::Array{cancercellCN, 1})
     return frequencymatrix ./ N
 end
 
+function copynumberfrequencyA(cells::Array{cancercellCN, 1})
+    #return frequency of copy number mutations, note that we check if
+    # copy number can be 0 even if this is not the case
+
+    N = length(cells)
+    Nchr = cells[1].genome.N
+
+    CNstates = hcat(map(x -> getAallele(x), cells)...)'
+    maxCN = maximum(CNstates)
+    frequencymatrix = zeros(maxCN + 1, 2*Nchr)
+
+    for i in 1:2*Nchr
+        frequencymatrix[:, i] = counts(CNstates[:, i], 0:maxCN)
+    end
+
+    return frequencymatrix ./ N
+end
+
+function copynumberfrequencyB(cells::Array{cancercellCN, 1})
+    #return frequency of copy number mutations, note that we check if
+    # copy number can be 0 even if this is not the case
+
+    N = length(cells)
+    Nchr = cells[1].genome.N
+
+    CNstates = hcat(map(x -> getBallele(x), cells)...)'
+    maxCN = maximum(CNstates)
+    frequencymatrix = zeros(maxCN + 1, 2*Nchr)
+
+    for i in 1:2*Nchr
+        frequencymatrix[:, i] = counts(CNstates[:, i], 0:maxCN)
+    end
+
+    return frequencymatrix ./ N
+end
+
 function sitefrequency(cells::Array{cancercellCN, 1})
     N = length(cells)
     Nchr = cells[1].genome.N
