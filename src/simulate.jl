@@ -351,6 +351,10 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         println("initial Rmax: $Rmax")
         println("Mean fitness = $(meanfitness(cells)), Max fitness = $(maxfitness(cells)), Min fitness = $(minfitness(cells))")
         println("Initial distance from optimum: $(gettotalcn(cells[1]) .- gettotalcn(s.optimum))")
+        println("Mean genotype:")
+        println("$(meangenotype(cells))")
+        println("Optimum genotype:")
+        println("$(gettotalcn(s.optimum))")
         #println(cells[1])
         println("##################################")
     end
