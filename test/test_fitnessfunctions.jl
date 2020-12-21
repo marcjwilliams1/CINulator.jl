@@ -17,9 +17,25 @@ chrfitness.alpha = fill(0.5, 4)
 bdrates = fopt(cell, chrfitness, log(2), 0.1)
 @test isapprox(bdrates[1], log(2), rtol = 0.01)
 
+myoptgenome = Genome(22)
+myoptgenome.CN[1] = Chromosome(Arm(2,2), Arm(2,2))
+myoptgenome.CN[2] = Chromosome(Arm(1,0), Arm(1,0))
+myoptgenome.CN[5] = Chromosome(Arm(1,1), Arm(0,2))
+myoptgenome.CN[18] = Chromosome(Arm(3,1), Arm(1,0))
+chrfitness = CINulator.Chrfitness(myoptgenome)
+chrfitness.alpha = fill(0.1, 22*2)
+CINulator.genomedistance(Genome(22), chrfitness.optimum, chrfitness.alpha)
+
 ###################################################################################
 # Test that cells with karyootypes far away from the optimum have lower birth rates
 ###################################################################################
+fopt = CINulator.optimumfitness()
+myoptgenome = Genome(2)
+myoptgenome.CN[1] = Chromosome(Arm(2,2), Arm(2,2))
+myoptgenome.CN[2] = Chromosome(Arm(1,0), Arm(1,0))
+chrfitness = CINulator.Chrfitness(myoptgenome)
+chrfitness.alpha = fill(0.5, 4)
+
 cell.genome.CN[1] = CINulator.Chromosome(Arm(1,1), Arm(1,1))
 cell.genome.CN[2] = CINulator.Chromosome(Arm(1,1), Arm(1,1))
 bdrates1 = fopt(cell, chrfitness, log(2), 0.1)

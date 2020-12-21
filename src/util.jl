@@ -211,3 +211,17 @@ end
 function mergemutationdataframe(cells)
     return vcat(map(x -> mutationdataframe(x), cells)...)
 end
+
+function show(io::IO, simresult::SimResult)
+    println("##################################")
+    println("Max population size: $(simresult.N[end])")
+    println("Max time: $(simresult.t[end])")
+    println("Mean fitness = $(round(meanfitness(simresult.cells), digits = 3)), Max fitness = $(round(maxfitness(simresult.cells), digits = 3)), Min fitness = $(round(minfitness(simresult.cells), digits = 3))")
+    println("Mean genotype:")
+    println("$(meangenotype(simresult.cells))")
+    println("N divisions: $(simresult.Ndivision)")
+    println("N dead cells: $(simresult.Ndeadcells)")
+    println("Proportion cells die: $(simresult.Ndeadcells / simresult.Ndivision)")
+    #println(cells[1])
+    println("##################################")
+end

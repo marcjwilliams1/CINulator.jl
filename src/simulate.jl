@@ -79,6 +79,8 @@ mutable struct SimResult
     N::Array{Int64, 1}
     fitness::Array{Float64, 1}
     ploidy::Array{Float64, 1}
+    Ndeadcells::Int64
+    Ndivision::Int64
 end
 
 function copygenome(genomeold)
@@ -121,7 +123,7 @@ function initializesim(b, d, Nchr; N0 = 1, states = Genome(Nchr))
         push!(cells, cancercellCN(b, d, b, d, Float64[], [], copygenome(states), Int64[], "temp"))
     end
 
-    return t, tvec, N, Nvec, cells, [meanfitness(cells)], [meanploidy(cells)]
+    return t, tvec, N, Nvec, cells, [meanfitness(cells)], [meanploidy(cells)], 0, 0
 end
 
 function additivefitness()
@@ -241,7 +243,7 @@ function newmutations(cancercell1,
 
     mutations = map(x -> rand(Poisson(x)), μ.mutrates) .> 0
     #println(mutations)
-    split_arms = map(x -> rand(Poisson(x)), μ.psplit) .> 0
+    #split_arms = map(x -> rand(Poisson(x)), μ.psplit) .> 0
 
     #record time if mutations occur
     if sum(mutations) > 0
@@ -259,7 +261,7 @@ function newmutations(cancercell1,
             continue
         end
 
-        cancercell1, cancercell2 = missegregation(cancercell1, cancercell2, chr, split_arms[chr])
+        cancercell1, cancercell2 = missegregation(cancercell1, cancercell2, chr, rand(Bernoulli(μ.psplit[chr])))
 
         #CN cannot go below minCN, cell dies
         if cancercell1.genome.CN[chr].p.tot < minCN || cancercell1.genome.CN[chr].q.tot < minCN
@@ -332,7 +334,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     # b and d have correct units
 
     #initialize arrays and parameters
-    t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
+    t, tvec, N, Nvec, cells, fitness, ploidy, Ndeadcells, Ndivisions = initializesim(b, d, Nchr, N0 = N0, states = states)
     labelid = 1
     cells = getfitness(cells, s, b, d, fitnessfunc = fitnessfunc)
     brate = maximum(map(x -> x.b, cells))
@@ -395,6 +397,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
 
             #population increases by one
             N = N + 1
+            Ndivisions = Ndivisions + 1
             #copy cell and mutations for cell that reproduces
             push!(cells,copycell(cells[randcell]))
             #add new mutations to both new cells
@@ -406,10 +409,12 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
                                             labelid = labelid)
             if killcell1 == true
                 N = N - 1
+                Ndeadcells = Ndeadcells + 1
                 deleteat!(cells,randcell)
             end
             if killcell2 == true
                 N = N - 1
+                Ndeadcells = Ndeadcells + 1
                 deleteat!(cells,length(cells))
             end
             Δt =  1/(Rmaxt * Nt) * timefunction()
@@ -418,7 +423,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
 
         #every cell dies reinitialize simulation
         if (N == 0)
-            t, tvec, N, Nvec, cells, fitness, ploidy = initializesim(b, d, Nchr, N0 = N0, states = states)
+            t, tvec, N, Nvec, cells, fitness, ploidy, Ndeadcells, Ndivisions = initializesim(b, d, Nchr, N0 = N0, states = states)
         end
 
         if record
@@ -463,7 +468,7 @@ function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
         cells = samplecells(cells, nsamplecells)
     end
 
-    return SimResult(cells, tvec, Nvec, fitness, ploidy)
+    return SimResult(cells, tvec, Nvec, fitness, ploidy, Ndeadcells, Ndivisions)
 end
 
 
@@ -573,24 +578,21 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
             #copy cell and mutations for cell that reproduces
             push!(cells,copycell(cells[randcell]))
             #add new mutations to both new cells
-            cells[randcell], Rmax, killcell, labelid =
-                                                newmutations(cells[randcell], μ,
-                                                s, Rmax, t, fitnessfunc,
-                                                maxCN = maxCN,
-                                                minCN = minCN,
-                                                labelcells = labelcells,
-                                                labelid = labelid)
-            if killcell == true
+
+            cells[randcell], cells[end], Rmax, killcell1, killcell2, labelid =
+                                        newmutations(cells[randcell], cells[end], μ,
+                                        s, Rmax,t, fitnessfunc,
+                                        maxCN = maxCN, minCN = minCN,
+                                        labelcells = labelcells,
+                                        labelid = labelid)
+            if killcell1 == true
                 N = N - 1
+                Ndeadcells = Ndeadcells + 1
                 deleteat!(cells,randcell)
             end
-            cells[end], Rmax, killcell = newmutations(cells[end], μ, s, Rmax, t,
-                                            fitnessfunc, maxCN = maxCN,
-                                            minCN = minCN,
-                                            labelcells = labelcells,
-                                            labelid = labelid)
-            if killcell == true
+            if killcell2 == true
                 N = N - 1
+                Ndeadcells = Ndeadcells + 1
                 deleteat!(cells,length(cells))
             end
             Δt =  1/(Rmaxt * Nt) * timefunction()
@@ -643,7 +645,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         cells[i].id = randstring(10)
     end
 
-    return SimResult(cells, tvec, Nvec, fitness, ploidy)
+    return SimResult(cells, tvec, Nvec, fitness, ploidy, Ndeadcells, Ndivisions)
 end
 
 function simulate_timeseries(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
