@@ -553,6 +553,7 @@ function simulate(cells::Array{cancercellCN, 1}, tvec, Nvec, Nmax;
         if (cells[randcell].b <= r < (cells[randcell].b + cells[randcell].d))
             #population decreases by 1
             N = N - 1
+            Ndeadcells = Ndeadcells + 1
             #frequency of cell type decreases
             #remove deleted cell
             deleteat!(cells,randcell)
