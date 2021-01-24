@@ -54,6 +54,38 @@ bdrates4 = fopt(cell, chrfitness, log(2), 0.1)
 @test bdrates4[1] > bdrates3[1] > bdrates2[1] > bdrates1[1]
 
 ###################################################################################
+# Test when chromosome have different alpha
+###################################################################################
+fopt = CINulator.optimumfitness()
+foptmod = CINulator.optimumfitness(distancemethod = "mod")
+myoptgenome = Genome(2)
+myoptgenome.CN[1] = Chromosome(Arm(2,2), Arm(2,2))
+myoptgenome.CN[2] = Chromosome(Arm(1,0), Arm(1,0))
+chrfitness = CINulator.Chrfitness(myoptgenome, alpha = [0.5, 0.0, 0.5, 0.0])
+
+#Same karyotype, no change in fitness
+cell.genome.CN[1] = CINulator.Chromosome(Arm(2,2), Arm(2,2))
+cell.genome.CN[2] = CINulator.Chromosome(Arm(1,0), Arm(1,0))
+bdrates1 = fopt(cell, chrfitness, log(2), 0.1)
+bdrates1mod = foptmod(cell, chrfitness, log(2), 0.1)
+
+#Different karyotype + no change in fitness
+cell.genome.CN[1] = CINulator.Chromosome(Arm(2,2), Arm(1,1))
+cell.genome.CN[2] = CINulator.Chromosome(Arm(1,0), Arm(1,1))
+bdrates2 = fopt(cell, chrfitness, log(2), 0.1)
+bdrates2mod = foptmod(cell, chrfitness, log(2), 0.1)
+
+#Different karyotype + change in fitness
+cell.genome.CN[1] = CINulator.Chromosome(Arm(2,1), Arm(1,1))
+cell.genome.CN[2] = CINulator.Chromosome(Arm(1,0), Arm(1,1))
+bdrates3 = fopt(cell, chrfitness, log(2), 0.1)
+bdrates3mod = foptmod(cell, chrfitness, log(2), 0.1)
+
+@test bdrates3[1] != bdrates3mod[1]
+@test bdrates1[1] == bdrates2[1]
+@test bdrates3[1] < bdrates2[1]
+
+###################################################################################
 #Test full simulation using optimum
 ###################################################################################
 Nchr = 4

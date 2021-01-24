@@ -134,7 +134,7 @@ function additivefitness()
     return f
 end
 
-function genomedistance(genome1, genome2, alpha)
+function genomedistance(genome1, genome2, alpha; distancemethod = "euclidean")
 
     dist = Float64[]
     for i in 1:length(genome1.CN)
@@ -142,13 +142,19 @@ function genomedistance(genome1, genome2, alpha)
         push!(dist, genome1.CN[i].q.tot - genome2.CN[i].q.tot)
     end
 
-    return sqrt(sum(alpha .* dist.^2))
+    if distancemethod == "mod"
+        mydist = sum(alpha .* abs.(dist))
+    else
+        mydist = sqrt(sum(alpha .* dist.^2))
+    end
+
+    return mydist
 end
 
-function optimumfitness(;increasebirth = true)
+function optimumfitness(;increasebirth = true, distancemethod = "eucliden")
     if increasebirth == true
         f = function (cancercell, chrfitness, b, d)
-            dist = genomedistance(cancercell.genome, chrfitness.optimum, chrfitness.alpha)
+            dist = genomedistance(cancercell.genome, chrfitness.optimum, chrfitness.alpha, distancemethod = distancemethod)
             smax = cancercell.binitial - cancercell.dinitial
 
             s = smax / (dist + 1)
@@ -160,7 +166,7 @@ function optimumfitness(;increasebirth = true)
         return f
     else
         f = function (cancercell, chrfitness, b, d)
-            dist = genomdistance(cancercell.genome, chrfitness.optimum, chrfitness.alpha)
+            dist = genomdistance(cancercell.genome, chrfitness.optimum, chrfitness.alpha, distancemethod = distancemethod)
             smax = cancercell.binitial - cancercell.dinitial
 
             s = smax / (dist + 1)
@@ -323,7 +329,8 @@ end
 
 function simulate(b::Float64, d::Float64, Nmax::Int64, Nchr::Int64;
     N0 = 1, μ = Chrmutrate(Nchr, m = 0.01), s = Chrfitness(Genome(Nchr)),
-    timefunction::Function = exptime, fitnessfunc = optimumfitness(),
+    timefunction::Function = exptime, 
+    fitnessfunc = optimumfitness(),
     maxCN = 6, minCN = 1, states::Genome = Genome(Nchr),
     verbose = true,
     timestop = false, tend = 0.0, record = false,
